@@ -208,6 +208,11 @@ def test_trusted_single_proxy_uses_one_valid_forwarded_address(tmp_path: Path) -
                 headers={"X-Forwarded-For": f"198.51.100.{number + 1}"},
                 json={"username": "admin", "password": "wrong"},
             ).status_code == 401
+        assert client.post(
+            "/api/auth/login",
+            headers={"X-Forwarded-For": "198.51.100.6"},
+            json={"username": "admin", "password": "wrong"},
+        ).status_code == 401
 
 
 def test_trusted_proxy_rejects_forwarded_chains(tmp_path: Path) -> None:
