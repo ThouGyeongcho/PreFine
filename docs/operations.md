@@ -78,7 +78,7 @@ $prefineDataDirLine = docker compose config --environment |
 if ($prefineDataDirLine) {
   $prefineDataDir = $prefineDataDirLine.Substring($prefineDataDirLine.IndexOf("=") + 1)
 }
-if (-not $prefineDataDir) {
+if ([string]::IsNullOrEmpty($prefineDataDir)) {
   $prefineDataDir = ".\data"
 }
 $backupDir = ".\backups"
@@ -98,7 +98,7 @@ $prefineDataDirLine = docker compose config --environment |
 if ($prefineDataDirLine) {
   $prefineDataDir = $prefineDataDirLine.Substring($prefineDataDirLine.IndexOf("=") + 1)
 }
-if (-not $prefineDataDir) {
+if ([string]::IsNullOrEmpty($prefineDataDir)) {
   $prefineDataDir = ".\data"
 }
 $backupDir = ".\backups"
