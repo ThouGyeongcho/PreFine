@@ -49,6 +49,7 @@
 - Modify: `backend/app/tax_source.py`
 - Modify: `docker/entrypoint.sh`
 - Modify: `docker-compose.yml`
+- Modify: `README.md` (仅同步其中的完整 Compose 代码块)
 - Modify: `backend/tests/test_auth.py`
 - Modify: `backend/tests/test_money_api.py`
 - Modify: `backend/tests/test_calendar_api.py`
@@ -349,6 +350,11 @@ Add `--no-proxy-headers` to the Uvicorn command in `docker/entrypoint.sh`, and a
       TRUSTED_PROXY_IPS: "${TRUSTED_PROXY_IPS:-}"
 ```
 
+Immediately copy the resulting complete `docker-compose.yml` document into the
+README Compose code block so the existing byte-for-byte distribution contract
+stays green throughout the task sequence. Broader README guidance remains in
+Task 5.
+
 - [ ] **Step 6: Make all authenticated write tests explicit about same origin**
 
 Create `backend/tests/http_helpers.py`:
@@ -382,7 +388,7 @@ In `backend/tests/test_prefine_identity.py`, add `condensed_legacy_title = "Fina
 Run:
 
 ```powershell
-.venv\Scripts\python.exe -m pytest backend/tests/test_config.py backend/tests/test_auth.py backend/tests/test_money_api.py backend/tests/test_calendar_api.py backend/tests/test_tax_settings_api.py backend/tests/test_test_email_api.py backend/tests/test_tax_source.py backend/tests/test_prefine_identity.py -q
+.venv\Scripts\python.exe -m pytest backend/tests/test_config.py backend/tests/test_auth.py backend/tests/test_money_api.py backend/tests/test_calendar_api.py backend/tests/test_tax_settings_api.py backend/tests/test_test_email_api.py backend/tests/test_tax_source.py backend/tests/test_prefine_identity.py backend/tests/test_container_distribution.py -q
 .venv\Scripts\python.exe -m ruff check backend
 ```
 
@@ -391,7 +397,7 @@ Expected: all selected tests pass and Ruff exits 0.
 Commit:
 
 ```powershell
-git add backend/app/config.py backend/app/auth.py backend/app/tax_source.py docker/entrypoint.sh docker-compose.yml backend/tests
+git add backend/app/config.py backend/app/auth.py backend/app/tax_source.py docker/entrypoint.sh docker-compose.yml README.md backend/tests
 git commit -m "fix(security): harden authentication boundaries"
 ```
 
