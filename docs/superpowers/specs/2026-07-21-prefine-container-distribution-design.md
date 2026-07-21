@@ -21,6 +21,36 @@
 
 本次不提供旧数据库文件名兼容或自动迁移。现有旧文件不会被自动读取，避免在改名完成后继续保留旧标识。
 
+## 品牌资产与历史清理
+
+公开仓库只保留最终确认的品牌文件：
+
+```text
+assets/branding/prefine-logo-512.png
+```
+
+以下设计过程文件不进入公开分支，也不得保留在公开可达的 Git 历史中：
+
+```text
+assets/branding/prefine-logo-option-1-512.png
+assets/branding/prefine-logo-option-2-512.png
+assets/branding/prefine-logo-option-3-512.png
+assets/branding/prefine-logo-option-4-512.png
+assets/branding/prefine-logo-option-5-512.png
+assets/branding/prefine-logo-options-contact-sheet.png
+```
+
+这些文件已经存在于私有远端历史，因此公开前执行一次受控历史重写：
+
+1. 记录远端 `main` 的原始 SHA，并确认仓库仍为私有。
+2. 将重写前仓库保存为仅存放在非公开临时目录中的本地 Git bundle，绝不加入工作树或推送。
+3. 提交最终 Logo 和本设计范围内的实现后，从全部本地可达提交中移除上述六个精确路径。
+4. 验证最终 Logo 内容保持为用户确认的版本，六个过程文件在当前树和全部本地可达历史中均不存在。
+5. 使用绑定原始远端 SHA 的 `--force-with-lease` 更新私有远端 `main`；不使用无租约强制推送。
+6. 重新读取远端树和提交历史，确认过程文件不可通过任何公开前保留的分支或标签访问。
+
+临时 Git bundle 只用于本次失败恢复。远端重写和核验完成后将其移出项目工作区并明确报告存放位置；它不会随源码仓库公开。
+
 ## 用户部署接口
 
 根目录 `docker-compose.yml` 只引用远程镜像，不包含 `build`：
@@ -90,28 +120,31 @@ docker compose up -d
 
 1. 扫描当前工作树和完整 Git 历史中的私钥、GitHub Token、云凭据、SMTP 凭据及其他可信密钥形态。
 2. 枚举所有历史对象和当前已跟踪路径，确认没有 `.env`、数据库、依赖目录、缓存、测试报告或构建产物。
-3. 人工复核 `.env.example`，确认只含无效占位值。
-4. 使用 Python 和 pnpm 的生产依赖审计；存在未处理的高危或严重漏洞时停止公开。
-5. 复核 GitHub Actions 权限、触发器、条件表达式和固定 SHA。
-6. 确认当前源码、配置和文档不存在旧项目标识。
-7. 运行后端、Ruff、前端 lint、Vitest、生产构建和 Playwright 全套验证。
-8. 校验 README 与根 Compose 完全一致，且 Compose 不含本地构建、使用公开镜像和宿主机目录挂载。
-9. 校验入口脚本的 PUID/PGID 拒绝路径、权限失败路径和降权执行路径。
+3. 确认公开可达的 Git 历史只包含最终 Logo，不包含六个品牌过程文件。
+4. 人工复核 `.env.example`，确认只含无效占位值。
+5. 使用 Python 和 pnpm 的生产依赖审计；存在未处理的高危或严重漏洞时停止公开。
+6. 复核 GitHub Actions 权限、触发器、条件表达式和固定 SHA。
+7. 确认当前源码、配置和文档不存在旧项目标识。
+8. 运行后端、Ruff、前端 lint、Vitest、生产构建和 Playwright 全套验证。
+9. 校验 README 与根 Compose 完全一致，且 Compose 不含本地构建、使用公开镜像和宿主机目录挂载。
+10. 校验入口脚本的 PUID/PGID 拒绝路径、权限失败路径和降权执行路径。
 
 可信密钥或高危生产依赖问题会阻断公开流程。自动扫描只能降低风险，不能证明绝无敏感信息。
 
 ## 发布顺序
 
-1. 在本地完成改名、部署配置、工作流和文档修改。
+1. 在本地完成改名、部署配置、工作流、最终 Logo 和文档修改。
 2. 完成全部测试、安全扫描、依赖审计和暂存区检查。
-3. 提交并推送默认分支，此时源码仓库保持私有。
-4. 等待 GitHub Actions 构建私有的 `latest`，检查 workflow 日志和多架构 manifest。
-5. 对远端提交和完整 Git 历史再执行一次安全复核。
-6. 将源码仓库改为公开。
-7. 将 GHCR 包改为公开；该操作不可逆。
-8. 验证未登录状态可以读取包信息和拉取 `latest`。
-9. 创建并推送 `v0.1.0` 标签。
-10. 等待 `0.1.0` 构建完成，验证两个标签均公开且同时包含 amd64、arm64。
+3. 提交实现，记录私有远端原始 SHA，并创建非公开临时 Git bundle。
+4. 从历史中移除六个品牌过程文件，完成本地历史和最终 Logo 核验。
+5. 使用绑定原始 SHA 的 `--force-with-lease` 推送默认分支，此时源码仓库保持私有。
+6. 等待 GitHub Actions 构建私有的 `latest`，检查 workflow 日志和多架构 manifest。
+7. 对远端提交和完整 Git 历史再执行一次安全复核。
+8. 将源码仓库改为公开。
+9. 将 GHCR 包改为公开；该操作不可逆。
+10. 验证未登录状态可以读取包信息和拉取 `latest`。
+11. 创建并推送 `v0.1.0` 标签。
+12. 等待 `0.1.0` 构建完成，验证两个标签均公开且同时包含 amd64、arm64。
 
 ## 错误处理
 
@@ -125,6 +158,7 @@ docker compose up -d
 ## 验证与成功标准
 
 - 当前源码、配置和文档中只使用 `PreFine`／`prefine`。
+- 公开树和全部公开可达历史中只有最终 `assets/branding/prefine-logo-512.png`，不存在品牌过程文件。
 - `docker-compose.yml` 没有 `build`，镜像为 `ghcr.io/thougyeongcho/prefine`，数据默认落在宿主机 `./data`。
 - README 含最简安装、升级、固定版本、Linux/NAS 权限和完整 Compose 文件。
 - 应用迁移与服务进程以 `prefine` 身份运行。
