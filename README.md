@@ -1,65 +1,43 @@
 # PreFine
 
-面向中国大陆财务团队的私有化单管理员工具箱。第一版包含人民币金额大小写严格双向转换、12366 税收日历缓存、企业税务清单、工具内设置、邮件提醒和同源登录。
-
-## 功能
-
-- 使用 `Decimal` 校验和转换人民币金额，支持负数、角分、规范千分位和严格反向回环。
-- 按 36 个地区和月份同步 12366 税历，原样保存并展示官方 `bssz` 文本。
-- 根据一般纳税人或小规模纳税人身份及关注事项生成个性化清单，无法识别的项目标记为“其他待确认”。
-- 采用 24 小时缓存、过期先返回和失败保留旧数据策略。
-- 按北京时间发送 7/3/1/0 天到期提醒，支持发送去重、失败重试和测试邮件。
-- 提供 12 小时签名会话、登录限速、HttpOnly Cookie 和同源写操作校验。
-
-个性化清单只是对官方文字的本地辅助筛选，不等同于企业在电子税务局中的真实税种核定结果，也不构成税务或法律意见。
+面向中国大陆财务团队的私有化单管理员工具箱。
 
 ## Docker 部署
 
-需要 Docker 与 Docker Compose。首次启动前先复制环境变量模板。
-
-Linux / macOS：
+PreFine 只从 GitHub Container Registry 拉取已发布的镜像；无需也不应在本地构建镜像。复制环境变量模板、编辑必要的凭据，然后启动服务：
 
 ```bash
 cp .env.example .env
-# 编辑 .env，替换管理员密码，并将 SESSION_SECRET 设置为至少 32 个字符
-docker compose up --build -d
+# 编辑 .env：设置 ADMIN_PASSWORD，并生成至少 32 字符的 SESSION_SECRET
+docker compose up -d
 ```
 
-Windows PowerShell：
+在 Windows PowerShell 中可使用 `Copy-Item .env.example .env`。启动后访问 `http://localhost:8000`。
 
-```powershell
-Copy-Item .env.example .env
-# 编辑 .env，替换管理员密码，并将 SESSION_SECRET 设置为至少 32 个字符
-docker compose up --build -d
-```
+`PREFINE_DATA_DIR` 默认是 `./data`，数据库保存在该主机目录的 `prefine.db`。默认的 `PUID` 和 `PGID` 都是 `1000`；如宿主机目录属于其他用户，请在 `.env` 中改成相应的 UID/GID，确保容器内降权后的进程仍可写入数据目录。
 
-打开 `http://localhost:8000`。`ADMIN_PASSWORD` 和 `SESSION_SECRET` 必须在部署前替换；SMTP 变量可留空，待需要邮件提醒时再配置。
-
-### 常用 Docker 命令
+### 升级与版本固定
 
 ```bash
-# 查看容器状态
-docker compose ps
+docker compose pull
+docker compose up -d
 
-# 检查服务健康状态
-curl http://localhost:8000/api/health
-
-# 持续查看最近 200 行应用日志
-docker compose logs -f --tail=200 app
-
-# 重启应用
-docker compose restart app
-
-# 停止并删除容器和网络，保留数据卷
-docker compose down
-
-# 重新构建并启动
-docker compose up --build -d
+# 固定版本：在 .env 中设置 PREFINE_VERSION=0.1.0
 ```
 
-PowerShell 可使用 `Invoke-RestMethod http://localhost:8000/api/health` 检查健康状态。
+`PREFINE_VERSION=latest` 会始终拉取最新发布版本。升级前请先按[运行手册](docs/operations.md)备份 `prefine.db`。
 
-数据保存在命名卷 `prefine-data`。容器启动时会自动执行 Alembic 迁移，并以非 root 用户运行单个 Uvicorn worker。`docker compose down` 会保留数据；`docker compose down -v` 会永久删除应用数据卷，仅应在确认无需保留数据时执行。详细配置、邮件、备份和升级步骤见 [运行手册](docs/operations.md)。
+### 常用命令
+
+```bash
+docker compose ps
+curl http://localhost:8000/api/health
+docker compose logs -f --tail=200 app
+docker compose restart app
+docker compose down
+```
+
+`docker compose down` 会删除容器和网络，但保留宿主机上的数据目录。不要删除 `${PREFINE_DATA_DIR:-./data}`，除非已完成备份且确定不再需要数据。
 
 ### 完整 Compose 文件
 
@@ -68,13 +46,14 @@ PowerShell 可使用 `Invoke-RestMethod http://localhost:8000/api/health` 检查
 ```yaml
 services:
   app:
-    build:
-      context: .
-    image: prefine:0.1.0
+    image: ghcr.io/thougyeongcho/prefine:${PREFINE_VERSION:-latest}
+    pull_policy: always
     restart: unless-stopped
     ports:
       - "${APP_PORT:-8000}:8000"
     environment:
+      PUID: "${PUID:-1000}"
+      PGID: "${PGID:-1000}"
       ADMIN_USERNAME: "${ADMIN_USERNAME:?请在 .env 中设置 ADMIN_USERNAME}"
       ADMIN_PASSWORD: "${ADMIN_PASSWORD:?请在 .env 中设置 ADMIN_PASSWORD}"
       SESSION_SECRET: "${SESSION_SECRET:?请在 .env 中设置 SESSION_SECRET}"
@@ -90,15 +69,20 @@ services:
       SMTP_USE_TLS: "${SMTP_USE_TLS:-false}"
       SMTP_STARTTLS: "${SMTP_STARTTLS:-false}"
     volumes:
-      - prefine-data:/data
-
-volumes:
-  prefine-data:
+      - "${PREFINE_DATA_DIR:-./data}:/data"
 ```
+
+## 功能
+
+- 使用 `Decimal` 校验和转换人民币金额，支持负数、角分、规范千分位和严格反向回环。
+- 按 36 个地区和月份同步 12366 税历，原样保存并展示官方 `bssz` 文本。
+- 根据纳税人身份及关注事项生成个性化清单；无法识别的项目会标记为“其他待确认”。
+- 使用 24 小时缓存、过期先返回和失败保留旧数据策略。
+- 支持邮件到期提醒、发送去重、失败重试和测试邮件。
 
 ## 本地开发
 
-后端要求 Python 3.12：
+后端需要 Python 3.12：
 
 ```bash
 python -m venv .venv
@@ -106,16 +90,12 @@ python -m venv .venv
 python -m uvicorn backend.app.main:create_app --factory --reload
 ```
 
-启动前设置 `ADMIN_USERNAME`、`ADMIN_PASSWORD`、至少 32 字符的 `SESSION_SECRET`，并将 `DATA_DIR` 指向可写目录。
-
-前端要求 Node.js 22 与 pnpm 11：
+前端需要 Node.js 22 和 pnpm 11：
 
 ```bash
 pnpm --dir frontend install --frozen-lockfile
 pnpm --dir frontend dev
 ```
-
-Vite 开发服务器会将 `/api` 代理到 `http://127.0.0.1:8000`。
 
 ## 验证
 
@@ -127,13 +107,3 @@ pnpm --dir frontend exec vitest run
 pnpm --dir frontend build
 pnpm --dir frontend e2e
 ```
-
-Playwright 默认使用其安装的 Chromium；本机也可设置 `PLAYWRIGHT_CHANNEL=msedge` 使用 Edge。真实 12366 接口只做手动契约检查，不纳入日常自动化，以免外部网络波动影响构建。
-
-## 项目结构
-
-- `backend/app/`：FastAPI、金额、税源、缓存、税务档案、提醒、认证与调度。
-- `backend/tests/`：pytest 单元、API、持久化和验收契约测试。
-- `frontend/src/`：React 页面、组件与 API 客户端。
-- `frontend/e2e/`：Playwright 桌面和移动关键流程。
-- `docs/`：产品设计、实施计划与运行手册。

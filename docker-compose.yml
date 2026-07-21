@@ -1,12 +1,13 @@
 services:
   app:
-    build:
-      context: .
-    image: prefine:0.1.0
+    image: ghcr.io/thougyeongcho/prefine:${PREFINE_VERSION:-latest}
+    pull_policy: always
     restart: unless-stopped
     ports:
       - "${APP_PORT:-8000}:8000"
     environment:
+      PUID: "${PUID:-1000}"
+      PGID: "${PGID:-1000}"
       ADMIN_USERNAME: "${ADMIN_USERNAME:?请在 .env 中设置 ADMIN_USERNAME}"
       ADMIN_PASSWORD: "${ADMIN_PASSWORD:?请在 .env 中设置 ADMIN_PASSWORD}"
       SESSION_SECRET: "${SESSION_SECRET:?请在 .env 中设置 SESSION_SECRET}"
@@ -22,7 +23,4 @@ services:
       SMTP_USE_TLS: "${SMTP_USE_TLS:-false}"
       SMTP_STARTTLS: "${SMTP_STARTTLS:-false}"
     volumes:
-      - prefine-data:/data
-
-volumes:
-  prefine-data:
+      - "${PREFINE_DATA_DIR:-./data}:/data"

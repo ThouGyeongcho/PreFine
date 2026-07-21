@@ -2,12 +2,15 @@
 
 ## 首次部署
 
-1. 复制 `.env.example` 为 `.env`。
-2. 设置独立的 `ADMIN_PASSWORD`，并为 `SESSION_SECRET` 生成至少 32 个随机字符。
-3. 执行 `docker compose up --build -d`。
-4. 打开 `http://localhost:8000`，或通过 `GET /api/health` 检查状态。
+PreFine 使用 GHCR 中已发布的镜像。请勿在部署机上运行 Docker 构建命令。
 
-应用在每次启动时先执行 Alembic 迁移；迁移失败时不会启动 Web 服务。SQLite 数据保存在命名卷 `prefine-data` 的 `/data/prefine.db` 中。容器以非 root 用户运行，并且 Uvicorn 固定为一个 worker，以避免计划任务和提醒重复执行。
+```bash
+cp .env.example .env
+# 编辑 .env：设置 ADMIN_PASSWORD，并生成至少 32 字符的 SESSION_SECRET
+docker compose up -d
+```
+
+容器以非 root 用户运行；入口点会根据 `PUID` 和 `PGID`（默认均为 `1000`）调整 `/data` 的访问权限。`PREFINE_DATA_DIR` 默认为 `./data`，并以主机目录方式挂载到 `/data`；SQLite 数据库文件为 `${PREFINE_DATA_DIR:-./data}/prefine.db`。
 
 ## HTTPS 与 Cookie
 
@@ -15,34 +18,47 @@
 
 ## 邮件提醒
 
-要启用邮件，必须同时设置 `SMTP_HOST`、`SMTP_PORT`、`SMTP_FROM` 和 `REMINDER_TO_EMAIL`。需要认证时再设置 `SMTP_USERNAME` 与 `SMTP_PASSWORD`。
+要启用邮件，必须同时设置 `SMTP_HOST`、`SMTP_PORT`、`SMTP_FROM` 和 `REMINDER_TO_EMAIL`。需要认证时再设置 `SMTP_USERNAME` 和 `SMTP_PASSWORD`。
 
 - 直连 TLS：`SMTP_USE_TLS=true`
 - STARTTLS：`SMTP_STARTTLS=true`
 
-二者不能同时启用。保存税务身份、关注事项、默认地区和提醒天数后，可在税收日历底部发送测试邮件。未配置 SMTP 时，测试邮件按钮保持禁用。
+二者不能同时启用。未配置 SMTP 时，测试邮件按钮保持禁用。
 
 ## 备份与恢复
 
-备份前先停止应用，避免复制到一半的数据库状态：
+备份或恢复前先停止应用，避免复制到不完整的 SQLite 状态。默认目录可通过 `PREFINE_DATA_DIR` 覆盖。
 
 ```bash
 docker compose stop app
-docker run --rm -v prefine-data:/data -v "$PWD":/backup alpine \
-  cp /data/prefine.db /backup/prefine.db
+mkdir -p backups
+cp "${PREFINE_DATA_DIR:-./data}/prefine.db" ./backups/prefine.db
 docker compose start app
 ```
 
-恢复时同样先停止应用，将备份数据库复制回命名卷，再启动并检查 `/api/health`。不要只复制 `-wal` 或 `-shm` 文件。
+恢复时使用同一个主机目录：
+
+```bash
+docker compose stop app
+cp ./backups/prefine.db "${PREFINE_DATA_DIR:-./data}/prefine.db"
+docker compose start app
+curl http://localhost:8000/api/health
+```
+
+不要只复制 `-wal` 或 `-shm` 文件。Windows PowerShell 可将 `cp` 替换为 `Copy-Item`，并保持相同的 `${PREFINE_DATA_DIR:-./data}` 目录。
 
 ## 升级与诊断
 
+升级镜像或固定版本前请先备份数据库：
+
 ```bash
 docker compose pull
-docker compose up --build -d
+docker compose up -d
+
+# 固定版本：在 .env 中设置 PREFINE_VERSION=0.1.0
 docker compose ps
 docker compose logs --tail=200 app
 docker compose exec app python -m alembic -c backend/alembic.ini current
 ```
 
-健康响应只包含应用、数据库、调度器和版本状态。12366 暂时不可用时，已有缓存仍会展示并标记为过期；首次同步且没有缓存时会返回可重试的不可用提示。
+`PREFINE_VERSION=latest` 会拉取最新发布版本。健康检查位于 `GET /api/health`；容器启动时会运行 Alembic 迁移，迁移失败时 Web 服务不会启动。

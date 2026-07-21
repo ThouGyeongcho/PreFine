@@ -1,4 +1,5 @@
 .env
+/data/
 .pytest_cache/
 pytest-cache-files-*/
 .test-tmp/
