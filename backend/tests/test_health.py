@@ -89,7 +89,7 @@ def test_startup_creates_the_approved_schema_and_sqlite_pragmas(tmp_path: Path) 
     with TestClient(app):
         pass
 
-    connection = sqlite3.connect(tmp_path / "finance-toolkit.db")
+    connection = sqlite3.connect(tmp_path / "prefine.db")
     table_names = {
         row[0]
         for row in connection.execute(

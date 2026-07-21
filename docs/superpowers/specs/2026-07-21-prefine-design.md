@@ -1,4 +1,4 @@
-# 财务工具包 v1 设计规格
+# PreFine v1 设计规格
 
 状态：已确认设计，待实施计划
 日期：2026-07-21
@@ -51,7 +51,7 @@
 
 - 后端：Python 3.12、FastAPI、Pydantic v2、SQLAlchemy 2、Alembic、HTTPX、APScheduler、aiosmtplib。
 - 前端：React、TypeScript、Vite、React Router、TanStack Query。
-- 存储：SQLite，数据库文件位于 `/data/finance-toolkit.db`。
+- 存储：SQLite，数据库文件位于 `/data/prefine.db`。
 - 部署：前端构建产物由 FastAPI 同源托管；最终产出一个多阶段构建的 Docker 镜像和一个 `docker-compose.yml` 示例。
 - 进程：容器只运行一个 Uvicorn worker。Web 请求、定时同步和邮件调度处于同一进程，避免多实例重复任务。
 - 健康检查：`GET /api/health` 不需要登录，只返回进程状态、数据库可用性和版本，不泄露配置值。

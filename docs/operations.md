@@ -1,4 +1,4 @@
-# 财务工具包运行手册
+# PreFine 运行手册
 
 ## 首次部署
 
@@ -7,7 +7,7 @@
 3. 执行 `docker compose up --build -d`。
 4. 打开 `http://localhost:8000`，或通过 `GET /api/health` 检查状态。
 
-应用在每次启动时先执行 Alembic 迁移；迁移失败时不会启动 Web 服务。SQLite 数据保存在命名卷 `finance-toolkit-data` 的 `/data/finance-toolkit.db` 中。容器以非 root 用户运行，并且 Uvicorn 固定为一个 worker，以避免计划任务和提醒重复执行。
+应用在每次启动时先执行 Alembic 迁移；迁移失败时不会启动 Web 服务。SQLite 数据保存在命名卷 `prefine-data` 的 `/data/prefine.db` 中。容器以非 root 用户运行，并且 Uvicorn 固定为一个 worker，以避免计划任务和提醒重复执行。
 
 ## HTTPS 与 Cookie
 
@@ -28,8 +28,8 @@
 
 ```bash
 docker compose stop app
-docker run --rm -v finance-toolkit-data:/data -v "$PWD":/backup alpine \
-  cp /data/finance-toolkit.db /backup/finance-toolkit.db
+docker run --rm -v prefine-data:/data -v "$PWD":/backup alpine \
+  cp /data/prefine.db /backup/prefine.db
 docker compose start app
 ```
 

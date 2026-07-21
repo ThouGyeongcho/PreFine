@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Publish the complete Finance Toolkit V1 to a new private `ThouGyeongcho/PreFine` repository with reproducible Docker instructions and the complete Compose file in README.
+**Goal:** Publish the complete PreFine V1 to a new private `ThouGyeongcho/PreFine` repository with reproducible Docker instructions and the complete Compose file in README.
 
 **Architecture:** Keep the runnable Compose configuration authoritative at the repository root and mirror it verbatim in README. Protect local-only state through `.gitignore`, then publish the reviewed initial history directly to `main` because the remote repository has no pre-existing base branch.
 
@@ -15,7 +15,7 @@
 - Do not commit `.superpowers/`, `.pnpm-store/`, `.env`, credentials, SQLite databases, dependency directories, caches, test output, or build output.
 - README must contain copyable Docker lifecycle commands and the complete root `docker-compose.yml` verbatim.
 - `ADMIN_PASSWORD` must be replaced before startup and `SESSION_SECRET` must contain at least 32 characters; SMTP remains optional.
-- Preserve the single Uvicorn worker, non-root container user, Alembic startup migration, and `finance-toolkit-data` named volume.
+- Preserve the single Uvicorn worker, non-root container user, Alembic startup migration, and `prefine-data` named volume.
 - If `ThouGyeongcho/PreFine` already exists, inspect it and stop instead of overwriting unknown history.
 
 ---
@@ -154,7 +154,7 @@ Run:
 git add -A
 git diff --cached --check
 git diff --cached --name-status
-git commit -m "feat: release finance toolkit v1"
+git commit -m "feat: release prefine v1"
 ```
 
 Expected: one Conventional Commit containing the complete V1 and no ignored local-only files.

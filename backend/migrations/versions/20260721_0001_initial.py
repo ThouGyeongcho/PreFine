@@ -1,4 +1,4 @@
-"""Create the finance toolkit v1 schema.
+"""Create the PreFine v1 schema.
 
 Revision ID: 20260721_0001
 Revises:

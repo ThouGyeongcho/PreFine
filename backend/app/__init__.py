@@ -1,3 +1,3 @@
-"""Application package for the finance toolkit."""
+"""Application package for PreFine."""
 
 __version__ = "0.1.0"

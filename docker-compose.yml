@@ -2,7 +2,7 @@ services:
   app:
     build:
       context: .
-    image: finance-toolkit:0.1.0
+    image: prefine:0.1.0
     restart: unless-stopped
     ports:
       - "${APP_PORT:-8000}:8000"
@@ -22,7 +22,7 @@ services:
       SMTP_USE_TLS: "${SMTP_USE_TLS:-false}"
       SMTP_STARTTLS: "${SMTP_STARTTLS:-false}"
     volumes:
-      - finance-toolkit-data:/data
+      - prefine-data:/data
 
 volumes:
-  finance-toolkit-data:
+  prefine-data:

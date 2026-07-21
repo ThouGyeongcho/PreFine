@@ -3,9 +3,9 @@ requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
-name = "finance-toolkit"
+name = "prefine"
 version = "0.1.0"
-description = "A private finance toolkit for mainland China finance teams"
+description = "PreFine for mainland China finance teams"
 requires-python = ">=3.12"
 dependencies = [
     "aiosmtplib>=3,<6",

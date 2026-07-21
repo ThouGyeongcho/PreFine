@@ -1,1 +1,1 @@
-"""Finance toolkit backend package."""
+"""PreFine backend package."""

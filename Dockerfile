@@ -16,24 +16,24 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-RUN groupadd --system finance-toolkit \
-    && useradd --system --gid finance-toolkit --home-dir /app finance-toolkit \
+RUN groupadd --system prefine \
+    && useradd --system --gid prefine --home-dir /app prefine \
     && mkdir -p /data \
-    && chown finance-toolkit:finance-toolkit /data
+    && chown prefine:prefine /data
 
 COPY pyproject.toml ./
 COPY backend/ backend/
 RUN python -m pip install --no-cache-dir .
 
 COPY --from=frontend-builder /build/frontend/dist frontend/dist
-COPY docker/entrypoint.sh /usr/local/bin/finance-toolkit-entrypoint
-RUN sed -i 's/\r$//' /usr/local/bin/finance-toolkit-entrypoint \
-    && chmod 0555 /usr/local/bin/finance-toolkit-entrypoint
+COPY docker/entrypoint.sh /usr/local/bin/prefine-entrypoint
+RUN sed -i 's/\r$//' /usr/local/bin/prefine-entrypoint \
+    && chmod 0555 /usr/local/bin/prefine-entrypoint
 
-USER finance-toolkit
+USER prefine
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"]
 
-ENTRYPOINT ["finance-toolkit-entrypoint"]
+ENTRYPOINT ["prefine-entrypoint"]

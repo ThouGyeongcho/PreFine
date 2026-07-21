@@ -1,4 +1,4 @@
-# 财务工具包
+# PreFine
 
 面向中国大陆财务团队的私有化单管理员工具箱。第一版包含人民币金额大小写严格双向转换、12366 税收日历缓存、企业税务清单、工具内设置、邮件提醒和同源登录。
 
@@ -59,7 +59,7 @@ docker compose up --build -d
 
 PowerShell 可使用 `Invoke-RestMethod http://localhost:8000/api/health` 检查健康状态。
 
-数据保存在命名卷 `finance-toolkit-data`。容器启动时会自动执行 Alembic 迁移，并以非 root 用户运行单个 Uvicorn worker。`docker compose down` 会保留数据；`docker compose down -v` 会永久删除应用数据卷，仅应在确认无需保留数据时执行。详细配置、邮件、备份和升级步骤见 [运行手册](docs/operations.md)。
+数据保存在命名卷 `prefine-data`。容器启动时会自动执行 Alembic 迁移，并以非 root 用户运行单个 Uvicorn worker。`docker compose down` 会保留数据；`docker compose down -v` 会永久删除应用数据卷，仅应在确认无需保留数据时执行。详细配置、邮件、备份和升级步骤见 [运行手册](docs/operations.md)。
 
 ### 完整 Compose 文件
 
@@ -70,7 +70,7 @@ services:
   app:
     build:
       context: .
-    image: finance-toolkit:0.1.0
+    image: prefine:0.1.0
     restart: unless-stopped
     ports:
       - "${APP_PORT:-8000}:8000"
@@ -90,10 +90,10 @@ services:
       SMTP_USE_TLS: "${SMTP_USE_TLS:-false}"
       SMTP_STARTTLS: "${SMTP_STARTTLS:-false}"
     volumes:
-      - finance-toolkit-data:/data
+      - prefine-data:/data
 
 volumes:
-  finance-toolkit-data:
+  prefine-data:
 ```
 
 ## 本地开发

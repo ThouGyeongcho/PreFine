@@ -42,7 +42,7 @@ class Settings(BaseSettings):
 
     @property
     def database_path(self) -> Path:
-        return self.data_dir / "finance-toolkit.db"
+        return self.data_dir / "prefine.db"
 
     @property
     def email_configured(self) -> bool:

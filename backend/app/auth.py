@@ -12,7 +12,8 @@ from itsdangerous import BadSignature, URLSafeSerializer
 from backend.app.config import Settings
 from backend.app.errors import ApiError
 
-SESSION_COOKIE = "finance_session"
+SESSION_COOKIE = "prefine_session"
+SESSION_SALT = "prefine-session-v1"
 SESSION_MAX_AGE_SECONDS = 12 * 60 * 60
 LOGIN_WINDOW_SECONDS = 15 * 60
 LOGIN_FAILURE_LIMIT = 5
@@ -36,7 +37,7 @@ class AuthService:
         self._now = now or (lambda: datetime.now(UTC))
         self._serializer = URLSafeSerializer(
             settings.session_secret.get_secret_value(),
-            salt="finance-toolkit-session-v1",
+            salt=SESSION_SALT,
         )
         self._failures: dict[str, deque[datetime]] = defaultdict(deque)
         self._failure_lock = Lock()

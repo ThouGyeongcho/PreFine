@@ -10,7 +10,7 @@
 
 1. 展示复制 `.env.example`、编辑凭据和首次构建启动的命令。
 2. 展示查看状态、健康检查、日志、重启、停止和重新构建命令。
-3. 说明 `finance-toolkit-data` 命名卷、Alembic 启动迁移、非 root 用户和单 Uvicorn worker。
+3. 说明 `prefine-data` 命名卷、Alembic 启动迁移、非 root 用户和单 Uvicorn worker。
 4. 将仓库根目录当前 `docker-compose.yml` 全文原样嵌入 README，确保文档示例与可执行配置一致。
 5. 明确必须替换管理员密码与至少 32 字符的会话密钥，SMTP 仍为可选配置。
 
@@ -18,7 +18,7 @@
 
 1. 在当前目录初始化 Git，初始分支为 `main`。
 2. 先单独提交本发布设计，提交信息为 `docs: define github publication design`。
-3. README 修改和当前完整第一版源码作为发布提交，提交信息为 `feat: release finance toolkit v1`。
+3. README 修改和当前完整第一版源码作为发布提交，提交信息为 `feat: release prefine v1`。
 4. 新仓库没有既有基础分支，因此直接推送 `main`，不创建人为的空分支或无意义 Pull Request。
 
 ## GitHub 发布

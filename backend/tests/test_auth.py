@@ -41,7 +41,7 @@ def test_login_sets_a_twelve_hour_http_only_same_site_cookie(tmp_path: Path) -> 
 
     assert response.status_code == 204
     cookie = response.headers["set-cookie"]
-    assert "finance_session=" in cookie
+    assert "prefine_session=" in cookie
     assert "HttpOnly" in cookie
     assert "SameSite=lax" in cookie
     assert "Max-Age=43200" in cookie

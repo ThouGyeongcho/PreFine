@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This repository is specification-first. Accepted decisions live in `docs/superpowers/specs/2026-07-21-finance-toolkit-design.md`; read it before changing behavior.
+This repository is specification-first. Accepted decisions live in `docs/superpowers/specs/2026-07-21-prefine-design.md`; read it before changing behavior.
 
 Keep the implementation split by responsibility:
 

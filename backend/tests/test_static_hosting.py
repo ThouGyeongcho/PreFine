@@ -20,10 +20,10 @@ def test_spa_routes_and_assets_are_served_without_shadowing_api(tmp_path: Path) 
     assets_dir = static_dir / "assets"
     assets_dir.mkdir(parents=True)
     (static_dir / "index.html").write_text(
-        '<!doctype html><div id="root">finance toolkit shell</div>',
+        '<!doctype html><div id="root">PreFine shell</div>',
         encoding="utf-8",
     )
-    (assets_dir / "app.js").write_text("window.financeToolkit = true", encoding="utf-8")
+    (assets_dir / "app.js").write_text("window.preFine = true", encoding="utf-8")
     app = create_app(
         make_settings(tmp_path / "data"),
         start_scheduler=False,
@@ -37,11 +37,11 @@ def test_spa_routes_and_assets_are_served_without_shadowing_api(tmp_path: Path) 
         unknown_api = client.get("/api/not-a-real-route")
 
     assert root.status_code == 200
-    assert "finance toolkit shell" in root.text
+    assert "PreFine shell" in root.text
     assert nested.status_code == 200
-    assert "finance toolkit shell" in nested.text
+    assert "PreFine shell" in nested.text
     assert asset.status_code == 200
-    assert asset.text == "window.financeToolkit = true"
+    assert asset.text == "window.preFine = true"
     assert unknown_api.status_code == 404
     assert unknown_api.headers["content-type"].startswith("application/json")
     assert unknown_api.json() == {
