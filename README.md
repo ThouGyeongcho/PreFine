@@ -1,5 +1,13 @@
 # PreFine
 
+## Container publication
+
+Users pull the published GHCR image and do not build it locally. A push to `main`
+publishes only `ghcr.io/thougyeongcho/prefine:latest`; a `v0.1.0` Git tag
+publishes only `ghcr.io/thougyeongcho/prefine:0.1.0`. Each published tag includes
+both `linux/amd64` and `linux/arm64` images. The image can be pulled anonymously
+only after the package visibility gate has been changed to public in GHCR.
+
 面向中国大陆财务团队的私有化单管理员工具箱。
 
 ## Docker 部署

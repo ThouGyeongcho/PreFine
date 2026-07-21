@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -116,3 +117,31 @@ cp "$prefine_data_dir/prefine.db" "$backup_dir/prefine.db"''' in operations
     assert restore_copy in operations
     assert "Windows PowerShell 可将 `cp` 替换为 `Copy-Item`" not in operations
     assert readme.count("${PREFINE_DATA_DIR:-./data}") == 1
+
+
+def test_publish_workflow_is_pinned_and_multi_architecture() -> None:
+    workflow = (ROOT / ".github" / "workflows" / "publish-container.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "contents: read" in workflow
+    assert "packages: write" in workflow
+    assert "linux/amd64,linux/arm64" in workflow
+    assert "ghcr.io/thougyeongcho/prefine" in workflow
+    assert "type=raw,value=latest" in workflow
+    assert "type=semver,pattern={{version}}" in workflow
+    assert "latest=false" in workflow
+    assert "cache-from: type=gha" in workflow
+    assert "cache-to: type=gha,mode=max" in workflow
+    assert "provenance: mode=max" in workflow
+    assert "sbom: true" in workflow
+    assert "imagetools inspect" in workflow
+    assert "github.ref == 'refs/heads/main'" in workflow
+    assert "startsWith(github.ref, 'refs/tags/v')" in workflow
+    assert "@v" not in workflow
+
+    action_refs = re.findall(r"^\s*uses:\s*[^@\s]+@([^\s#]+)", workflow, re.MULTILINE)
+    assert action_refs
+    assert all(re.fullmatch(r"[0-9a-f]{40}", ref) for ref in action_refs)
+    assert "pattern={{major}}" not in workflow
+    assert "pattern={{major}}.{{minor}}" not in workflow
