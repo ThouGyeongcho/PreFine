@@ -16,10 +16,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-RUN groupadd --system prefine \
-    && useradd --system --gid prefine --home-dir /app prefine \
-    && mkdir -p /data \
-    && chown prefine:prefine /data
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends gosu \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --system prefine \
+    && useradd --system --gid prefine --home-dir /app --shell /usr/sbin/nologin prefine \
+    && mkdir -p /data
 
 COPY pyproject.toml ./
 COPY backend/ backend/
@@ -30,7 +32,6 @@ COPY docker/entrypoint.sh /usr/local/bin/prefine-entrypoint
 RUN sed -i 's/\r$//' /usr/local/bin/prefine-entrypoint \
     && chmod 0555 /usr/local/bin/prefine-entrypoint
 
-USER prefine
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
