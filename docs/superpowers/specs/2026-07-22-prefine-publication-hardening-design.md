@@ -141,6 +141,22 @@ GitHub Actions 使用 Buildx 构建仅供本次运行使用的 `linux/amd64` 镜
 
 推送后检查 manifest 必须同时包含两个目标平台。无效 Git 引用必须在 QEMU、Buildx、登录或任何发布副作用前失败。
 
+### 4. GitHub Release 同步
+
+`main` 推送和默认分支人工触发只更新 Docker `latest`，不创建 GitHub Release。只有通过严格验证的 `vX.Y.Z` 标签才在多架构镜像和 manifest 验证成功后创建正式 Release，顺序不得颠倒。
+
+Release 标题使用完整标签名，例如 `v0.1.0`。工作流使用 GitHub runner 自带的 `gh release create`，同时启用 `--verify-tag` 和 `--generate-notes`，不新增第三方 Release Action。自定义说明放在自动生成记录之前，至少包含：
+
+```console
+docker pull ghcr.io/thougyeongcho/prefine:0.1.0
+```
+
+说明同时链接到仓库中的 Compose 部署和升级文档。Release 不上传 Docker 镜像副本；GitHub 自动提供源码归档，容器只由 GHCR 分发。
+
+Release 任务独立授予 `contents: write`。源码验证任务保持 `contents: read`，镜像推送任务只增加 `packages: write`，避免整个工作流共享写权限。重复运行时先读取现有 Release：不存在时创建；已经存在时必须验证其标签和目标提交与当前运行一致，不重复创建、不移动标签，也不覆盖指向其他提交的 Release。
+
+任一源码门禁、烟测、镜像推送或 manifest 检查失败时，不运行 Release 任务。Release 创建失败会使正式版本工作流失败；重新运行可以安全完成尚未创建的 Release。
+
 ## 公开治理与发布顺序
 
 实现同时完成以下文档治理：
@@ -158,7 +174,8 @@ GitHub Actions 使用 Buildx 构建仅供本次运行使用的 `linux/amd64` 镜
 4. 将 GitHub 源码仓库改为公开，并启用 private vulnerability reporting。
 5. 将 GHCR 包改为公开，并验证未登录状态能够查看和拉取 `latest`。
 6. 创建并推送不可移动的 `v0.1.0` 标签。
-7. 等待 `0.1.0` 工作流通过，验证 `latest` 与 `0.1.0` 均公开且同时包含 amd64、arm64。
+7. 等待 `0.1.0` 工作流通过；该工作流在双架构 manifest 验证后自动创建 `v0.1.0` GitHub Release。
+8. 验证 `latest` 与 `0.1.0` 均公开且同时包含 amd64、arm64，并确认 GitHub Release 指向同一标签和提交。
 
 任何门禁失败都停止后续步骤。不得使用未租约强推，不得移动已发布版本标签，也不得在安全复审完成前改变仓库或包的公开状态。
 
@@ -168,6 +185,6 @@ GitHub Actions 使用 Buildx 构建仅供本次运行使用的 `linux/amd64` 镜
 
 前端新增测试覆盖：主动注销后浏览器返回、任意业务请求 401、错误登录、重新登录不复用旧缓存、空白提醒项、尾随逗号，以及服务器排序和去重后的草稿同步。
 
-容器与工作流契约测试覆盖：维护命令降权、默认启动不变、Compose 新环境变量、源码门禁位于登录前、烟测位于推送前、清理路径、精确标签、多架构和固定 Action SHA。
+容器与工作流契约测试覆盖：维护命令降权、默认启动不变、Compose 新环境变量、源码门禁位于登录前、烟测位于推送前、清理路径、精确标签、多架构、固定 Action SHA、Release 位于 manifest 验证后，以及 Release 任务的独立最小权限。
 
-公开发布的完成标准为：全部本地非 Docker 验证通过，私有 GitHub Actions 源码门禁和运行烟测通过，私有及公开 manifest 验证通过，仓库历史无秘密和已删除品牌过程文件，匿名用户可拉取两个目标标签，且工作树与远端 `main` 一致。
+公开发布的完成标准为：全部本地非 Docker 验证通过，私有 GitHub Actions 源码门禁和运行烟测通过，私有及公开 manifest 验证通过，仓库历史无秘密和已删除品牌过程文件，匿名用户可拉取两个目标标签，`v0.1.0` GitHub Release 与 `0.1.0` 镜像指向同一提交，且工作树与远端 `main` 一致。
