@@ -1,0 +1,28 @@
+services:
+  app:
+    build:
+      context: .
+    image: finance-toolkit:0.1.0
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    environment:
+      ADMIN_USERNAME: "${ADMIN_USERNAME:?请在 .env 中设置 ADMIN_USERNAME}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:?请在 .env 中设置 ADMIN_PASSWORD}"
+      SESSION_SECRET: "${SESSION_SECRET:?请在 .env 中设置 SESSION_SECRET}"
+      DATA_DIR: /data
+      COOKIE_SECURE: "${COOKIE_SECURE:-false}"
+      TZ: "${TZ:-Asia/Shanghai}"
+      SMTP_HOST: "${SMTP_HOST:-}"
+      SMTP_PORT: "${SMTP_PORT:-}"
+      SMTP_USERNAME: "${SMTP_USERNAME:-}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+      SMTP_FROM: "${SMTP_FROM:-}"
+      REMINDER_TO_EMAIL: "${REMINDER_TO_EMAIL:-}"
+      SMTP_USE_TLS: "${SMTP_USE_TLS:-false}"
+      SMTP_STARTTLS: "${SMTP_STARTTLS:-false}"
+    volumes:
+      - finance-toolkit-data:/data
+
+volumes:
+  finance-toolkit-data:

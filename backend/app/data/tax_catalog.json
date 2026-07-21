@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "items": [
+    {"code": "vat", "category": "tax", "display_name": "增值税", "aliases": ["增值税"], "taxpayer_scope": ["general_taxpayer", "small_scale_taxpayer"]},
+    {"code": "vat_general", "category": "tax", "display_name": "增值税（一般纳税人事项）", "aliases": ["增值税一般纳税人"], "taxpayer_scope": ["general_taxpayer"]},
+    {"code": "vat_small_scale", "category": "tax", "display_name": "增值税（小规模纳税人事项）", "aliases": ["增值税小规模纳税人"], "taxpayer_scope": ["small_scale_taxpayer"]},
+    {"code": "consumption_tax", "category": "tax", "display_name": "消费税", "aliases": ["消费税"], "taxpayer_scope": ["general_taxpayer", "small_scale_taxpayer"]},
+    {"code": "urban_maintenance_tax", "category": "tax", "display_name": "城市维护建设税", "aliases": ["城市维护建设税"], "taxpayer_scope": ["general_taxpayer", "small_scale_taxpayer"]},
+    {"code": "education_surcharge", "category": "fee_fund", "display_name": "教育费附加", "aliases": ["教育费附加"], "taxpayer_scope": ["general_taxpayer", "small_scale_taxpayer"]},
+    {"code": "local_education_surcharge", "category": "fee_fund", "display_name": "地方教育附加", "aliases": ["地方教育附加"], "taxpayer_scope": ["general_taxpayer", "small_scale_taxpayer"]},
+    {"code": "cultural_business_fee", "category": "fee_fund", "display_name": "文化事业建设费", "aliases": ["文化事业建设费"], "taxpayer_scope": ["general_taxpayer", "small_scale_taxpayer"]},
+    {"code": "corporate_income_tax", "category": "tax", "display_name": "企业所得税", "aliases": ["企业所得税"], "taxpayer_scope": ["general_taxpayer", "small_scale_taxpayer"]},
+    {"code": "individual_income_tax", "category": "tax", "display_name": "个人所得税", "aliases": ["个人所得税"], "taxpayer_scope": ["general_taxpayer", "small_scale_taxpayer"]},
+    {"code": "land_appreciation_tax", "category": "tax", "display_name": "土地增值税", "aliases": ["土地增值税"], "taxpayer_scope": ["general_taxpayer", "small_scale_taxpayer"]},
+    {"code": "resource_tax", "category": "tax", "display_name": "资源税", "aliases": ["资源税", "水资源税"], "taxpayer_scope": ["general_taxpayer", "small_scale_taxpayer"]},
+    {"code": "environmental_protection_tax", "category": "tax", "display_name": "环境保护税", "aliases": ["环境保护税"], "taxpayer_scope": ["general_taxpayer", "small_scale_taxpayer"]},
+    {"code": "vehicle_vessel_tax", "category": "tax", "display_name": "车船税", "aliases": ["车船税"], "taxpayer_scope": ["general_taxpayer", "small_scale_taxpayer"]},
+    {"code": "stamp_tax", "category": "tax", "display_name": "印花税", "aliases": ["印花税", "按季计征印花税"], "taxpayer_scope": ["general_taxpayer", "small_scale_taxpayer"]},
+    {"code": "government_funds", "category": "fee_fund", "display_name": "政府性基金", "aliases": ["可再生能源发展基金", "大中型水库移民后期扶持基金", "国家重大水利工程建设基金", "彩票公益金", "彩票业务费"], "taxpayer_scope": ["general_taxpayer", "small_scale_taxpayer"]},
+    {"code": "financial_reports", "category": "report", "display_name": "财务会计报告", "aliases": ["财务会计报告", "财务报表"], "taxpayer_scope": ["general_taxpayer", "small_scale_taxpayer"]}
+  ]
+}

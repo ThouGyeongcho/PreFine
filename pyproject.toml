@@ -1,0 +1,45 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "finance-toolkit"
+version = "0.1.0"
+description = "A private finance toolkit for mainland China finance teams"
+requires-python = ">=3.12"
+dependencies = [
+    "aiosmtplib>=3,<6",
+    "alembic>=1.14,<2",
+    "apscheduler>=3.10,<4",
+    "fastapi>=0.115,<1",
+    "httpx>=0.28,<1",
+    "itsdangerous>=2.2,<3",
+    "pydantic>=2.10,<3",
+    "pydantic-settings>=2.7,<3",
+    "sqlalchemy>=2.0.36,<3",
+    "uvicorn[standard]>=0.34,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3,<10",
+    "pytest-asyncio>=0.25,<2",
+    "ruff>=0.9,<1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["backend"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["backend/tests"]
+filterwarnings = [
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated.*:starlette.exceptions.StarletteDeprecationWarning",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
