@@ -6,15 +6,22 @@ from fastapi.testclient import TestClient
 
 from backend.app.config import Settings
 from backend.app.main import create_app
+from backend.tests.http_helpers import SAME_ORIGIN_HEADERS
 
 
-def make_settings(data_dir: Path, *, cookie_secure: bool = False) -> Settings:
+def make_settings(
+    data_dir: Path,
+    *,
+    cookie_secure: bool = False,
+    trusted_proxy_ips: str = "",
+) -> Settings:
     return Settings(
         ADMIN_USERNAME="admin",
         ADMIN_PASSWORD="correct horse battery staple",
         SESSION_SECRET="0123456789abcdef0123456789abcdef",
         DATA_DIR=data_dir,
         COOKIE_SECURE=cookie_secure,
+        TRUSTED_PROXY_IPS=trusted_proxy_ips,
     )
 
 
@@ -23,13 +30,19 @@ def make_client(
     *,
     auth_now: Callable[[], datetime] | None = None,
     cookie_secure: bool = False,
+    trusted_proxy_ips: str = "",
+    client_address: str = "testclient",
 ) -> TestClient:
     app = create_app(
-        make_settings(data_dir, cookie_secure=cookie_secure),
+        make_settings(
+            data_dir,
+            cookie_secure=cookie_secure,
+            trusted_proxy_ips=trusted_proxy_ips,
+        ),
         start_scheduler=False,
         auth_now=auth_now,
     )
-    return TestClient(app)
+    return TestClient(app, client=(client_address, 50000))
 
 
 def test_login_sets_a_twelve_hour_http_only_same_site_cookie(tmp_path: Path) -> None:
@@ -101,7 +114,7 @@ def test_successful_login_clears_the_ip_failure_counter(tmp_path: Path) -> None:
             "/api/auth/login",
             json={"username": "admin", "password": "correct horse battery staple"},
         )
-        client.post("/api/auth/logout")
+        client.post("/api/auth/logout", headers=SAME_ORIGIN_HEADERS)
         after_reset = client.post(
             "/api/auth/login",
             json={"username": "admin", "password": "wrong"},
@@ -143,13 +156,87 @@ def test_logout_rejects_a_foreign_origin(tmp_path: Path) -> None:
     assert response.json()["code"] == "origin_not_allowed"
 
 
+def test_authenticated_write_without_source_headers_is_rejected(tmp_path: Path) -> None:
+    with make_client(tmp_path) as client:
+        assert client.post(
+            "/api/auth/login",
+            json={"username": "admin", "password": "correct horse battery staple"},
+        ).status_code == 204
+        response = client.post("/api/auth/logout")
+    assert response.status_code == 403
+    assert response.json()["code"] == "origin_not_allowed"
+
+
+def test_same_origin_fetch_metadata_allows_authenticated_write(tmp_path: Path) -> None:
+    with make_client(tmp_path) as client:
+        client.post(
+            "/api/auth/login",
+            json={"username": "admin", "password": "correct horse battery staple"},
+        )
+        response = client.post(
+            "/api/auth/logout", headers={"Sec-Fetch-Site": "same-origin"}
+        )
+    assert response.status_code == 204
+
+
+def test_untrusted_peer_cannot_spoof_forwarded_login_bucket(tmp_path: Path) -> None:
+    with make_client(tmp_path, client_address="203.0.113.10") as client:
+        for number in range(5):
+            response = client.post(
+                "/api/auth/login",
+                headers={"X-Forwarded-For": f"198.51.100.{number + 1}"},
+                json={"username": "admin", "password": "wrong"},
+            )
+            assert response.status_code == 401
+        blocked = client.post(
+            "/api/auth/login",
+            headers={"X-Forwarded-For": "198.51.100.99"},
+            json={"username": "admin", "password": "wrong"},
+        )
+    assert blocked.status_code == 429
+
+
+def test_trusted_single_proxy_uses_one_valid_forwarded_address(tmp_path: Path) -> None:
+    with make_client(
+        tmp_path,
+        client_address="192.0.2.10",
+        trusted_proxy_ips="192.0.2.10",
+    ) as client:
+        for number in range(5):
+            assert client.post(
+                "/api/auth/login",
+                headers={"X-Forwarded-For": f"198.51.100.{number + 1}"},
+                json={"username": "admin", "password": "wrong"},
+            ).status_code == 401
+
+
+def test_trusted_proxy_rejects_forwarded_chains(tmp_path: Path) -> None:
+    with make_client(
+        tmp_path,
+        client_address="192.0.2.10",
+        trusted_proxy_ips="192.0.2.10",
+    ) as client:
+        for number in range(5):
+            assert client.post(
+                "/api/auth/login",
+                headers={"X-Forwarded-For": f"198.51.100.{number + 1}, 192.0.2.9"},
+                json={"username": "admin", "password": "wrong"},
+            ).status_code == 401
+        blocked = client.post(
+            "/api/auth/login",
+            headers={"X-Forwarded-For": "198.51.100.99, 192.0.2.9"},
+            json={"username": "admin", "password": "wrong"},
+        )
+    assert blocked.status_code == 429
+
+
 def test_logout_clears_the_session(tmp_path: Path) -> None:
     with make_client(tmp_path) as client:
         client.post(
             "/api/auth/login",
             json={"username": "admin", "password": "correct horse battery staple"},
         )
-        response = client.post("/api/auth/logout")
+        response = client.post("/api/auth/logout", headers=SAME_ORIGIN_HEADERS)
         me = client.get("/api/auth/me")
 
     assert response.status_code == 204

@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 
 from backend.app.config import Settings
 from backend.app.main import create_app
+from backend.tests.http_helpers import SAME_ORIGIN_HEADERS
 
 
 def make_client(data_dir: Path) -> TestClient:
@@ -37,6 +38,7 @@ def test_to_uppercase_api_returns_the_canonical_example(tmp_path: Path) -> None:
         login(client)
         response = client.post(
             "/api/money/to-uppercase",
+            headers=SAME_ORIGIN_HEADERS,
             json={"amount": "-128650.32"},
         )
 
@@ -52,6 +54,7 @@ def test_to_number_api_requires_strict_canonical_uppercase(tmp_path: Path) -> No
         login(client)
         response = client.post(
             "/api/money/to-number",
+            headers=SAME_ORIGIN_HEADERS,
             json={"uppercase": "负壹拾贰万捌仟陆佰伍拾元叁角贰分"},
         )
 
@@ -62,7 +65,11 @@ def test_to_number_api_requires_strict_canonical_uppercase(tmp_path: Path) -> No
 def test_three_decimal_places_return_the_stable_error_shape(tmp_path: Path) -> None:
     with make_client(tmp_path) as client:
         login(client)
-        response = client.post("/api/money/to-uppercase", json={"amount": "1.001"})
+        response = client.post(
+            "/api/money/to-uppercase",
+            json={"amount": "1.001"},
+            headers=SAME_ORIGIN_HEADERS,
+        )
 
     assert response.status_code == 422
     assert response.json() == {
@@ -103,7 +110,7 @@ def test_browser_state_change_cannot_bypass_origin_check_by_omitting_origin(
 def test_request_validation_uses_the_stable_error_shape(tmp_path: Path) -> None:
     with make_client(tmp_path) as client:
         login(client)
-        response = client.post("/api/money/to-uppercase", json={})
+        response = client.post("/api/money/to-uppercase", json={}, headers=SAME_ORIGIN_HEADERS)
 
     assert response.status_code == 422
     assert response.json()["code"] == "validation_error"

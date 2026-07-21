@@ -3,6 +3,7 @@ from collections import defaultdict, deque
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from ipaddress import ip_address
 from threading import Lock
 from urllib.parse import urlsplit
 
@@ -113,15 +114,10 @@ def require_session(request: Request) -> SessionPrincipal:
 
 
 def require_same_origin(request: Request) -> None:
-    """Reject a supplied Origin that does not match the request Host."""
-
     source = request.headers.get("origin") or request.headers.get("referer")
     request_host = request.headers.get("host", "").lower()
     if source is None:
-        fetch_site = request.headers.get("sec-fetch-site")
-        if fetch_site is None:
-            return  # Non-browser API clients do not always send browser source headers.
-        if fetch_site == "same-origin":
+        if request.headers.get("sec-fetch-site") == "same-origin":
             return
         raise _origin_not_allowed()
 
@@ -131,7 +127,23 @@ def require_same_origin(request: Request) -> None:
 
 
 def client_ip(request: Request) -> str:
-    return request.client.host if request.client is not None else "unknown"
+    peer = request.client.host if request.client is not None else "unknown"
+    try:
+        peer_address = ip_address(peer)
+    except ValueError:
+        return peer
+
+    settings = get_auth_service(request).settings
+    if peer_address not in settings.trusted_proxy_addresses:
+        return str(peer_address)
+
+    forwarded = request.headers.get("x-forwarded-for", "").strip()
+    if not forwarded or "," in forwarded:
+        return str(peer_address)
+    try:
+        return str(ip_address(forwarded))
+    except ValueError:
+        return str(peer_address)
 
 
 def _authentication_required() -> ApiError:

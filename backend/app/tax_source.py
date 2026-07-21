@@ -138,7 +138,7 @@ class TaxSourceClient:
             headers={
                 "Accept": "application/json, text/plain, */*",
                 "Referer": SOURCE_PAGE_URL,
-                "User-Agent": "FinanceToolkit/0.1 (+private tax calendar client)",
+                "User-Agent": "PreFine/0.1 (+https://github.com/ThouGyeongcho/PreFine)",
             },
             timeout=10.0,
         )

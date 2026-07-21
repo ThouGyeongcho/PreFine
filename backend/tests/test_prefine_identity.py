@@ -69,6 +69,7 @@ def test_runtime_identity_uses_prefine_names(tmp_path: Path) -> None:
 def test_current_tree_contains_no_legacy_project_identifier() -> None:
     legacy_slug = "finance" + "-" + "toolkit"
     legacy_title = "Finance" + " " + "Toolkit"
+    condensed_legacy_title = "Finance" + "Toolkit"
     former_chinese_title = "财务" + "工具包"
     mixed_case_identifier = "pre" + "Fine"
     findings: list[str] = []
@@ -80,6 +81,7 @@ def test_current_tree_contains_no_legacy_project_identifier() -> None:
             legacy_slug in relative.lower()
             or legacy_slug in text.lower()
             or legacy_title in text
+            or condensed_legacy_title in text
             or former_chinese_title in text
             or mixed_case_identifier in text
         ):

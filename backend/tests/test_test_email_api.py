@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 
 from backend.app.config import Settings
 from backend.app.reminders import EmailDeliveryError
+from backend.tests.http_helpers import SAME_ORIGIN_HEADERS
 
 
 class FakeSender:
@@ -52,7 +53,7 @@ def test_test_email_is_disabled_when_smtp_is_not_configured(tmp_path: Path) -> N
         create_app(settings(tmp_path, email=False), start_scheduler=False, email_sender=sender)
     ) as client:
         login(client)
-        response = client.post("/api/tools/tax/test-email")
+        response = client.post("/api/tools/tax/test-email", headers=SAME_ORIGIN_HEADERS)
 
     assert response.status_code == 422
     assert response.json()["code"] == "smtp_not_configured"
@@ -67,7 +68,7 @@ def test_test_email_sends_without_creating_a_reminder_dispatch(tmp_path: Path) -
         create_app(settings(tmp_path, email=True), start_scheduler=False, email_sender=sender)
     ) as client:
         login(client)
-        response = client.post("/api/tools/tax/test-email")
+        response = client.post("/api/tools/tax/test-email", headers=SAME_ORIGIN_HEADERS)
 
     assert response.status_code == 200
     assert response.json() == {"status": "sent"}
@@ -83,7 +84,7 @@ def test_test_email_failure_does_not_expose_smtp_diagnostics(tmp_path: Path) -> 
         create_app(settings(tmp_path, email=True), start_scheduler=False, email_sender=sender)
     ) as client:
         login(client)
-        response = client.post("/api/tools/tax/test-email")
+        response = client.post("/api/tools/tax/test-email", headers=SAME_ORIGIN_HEADERS)
 
     assert response.status_code == 503
     assert response.json()["code"] == "email_delivery_failed"

@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from backend.app.config import Settings
 from backend.app.main import create_app
 from backend.app.tax_source import SourceCalendarEvent, YearMonth
+from backend.tests.http_helpers import SAME_ORIGIN_HEADERS
 
 
 class FakeTaxSource:
@@ -93,7 +94,9 @@ def test_catalog_api_exposes_stable_selectable_items(tmp_path: Path) -> None:
 def test_settings_are_transactionally_saved_and_reloaded(tmp_path: Path) -> None:
     with make_client(tmp_path) as client:
         login(client)
-        saved = client.put("/api/tools/tax/settings", json=valid_settings())
+        saved = client.put(
+            "/api/tools/tax/settings", json=valid_settings(), headers=SAME_ORIGIN_HEADERS
+        )
         reloaded = client.get("/api/tools/tax/settings")
 
     assert saved.status_code == 200
@@ -104,10 +107,14 @@ def test_settings_are_transactionally_saved_and_reloaded(tmp_path: Path) -> None
 def test_invalid_settings_keep_the_previous_value(tmp_path: Path) -> None:
     with make_client(tmp_path) as client:
         login(client)
-        assert client.put("/api/tools/tax/settings", json=valid_settings()).status_code == 200
+        assert client.put(
+            "/api/tools/tax/settings", json=valid_settings(), headers=SAME_ORIGIN_HEADERS
+        ).status_code == 200
         invalid = valid_settings()
         invalid["reminder_days"] = [31]
-        rejected = client.put("/api/tools/tax/settings", json=invalid)
+        rejected = client.put(
+            "/api/tools/tax/settings", json=invalid, headers=SAME_ORIGIN_HEADERS
+        )
         reloaded = client.get("/api/tools/tax/settings")
 
     assert rejected.status_code == 422
@@ -117,10 +124,14 @@ def test_invalid_settings_keep_the_previous_value(tmp_path: Path) -> None:
 def test_unknown_catalog_code_is_rejected_without_overwriting_settings(tmp_path: Path) -> None:
     with make_client(tmp_path) as client:
         login(client)
-        assert client.put("/api/tools/tax/settings", json=valid_settings()).status_code == 200
+        assert client.put(
+            "/api/tools/tax/settings", json=valid_settings(), headers=SAME_ORIGIN_HEADERS
+        ).status_code == 200
         invalid = valid_settings()
         invalid["selected_item_codes"] = ["not-a-real-item"]
-        rejected = client.put("/api/tools/tax/settings", json=invalid)
+        rejected = client.put(
+            "/api/tools/tax/settings", json=invalid, headers=SAME_ORIGIN_HEADERS
+        )
         reloaded = client.get("/api/tools/tax/settings")
 
     assert rejected.status_code == 422
@@ -135,7 +146,9 @@ def test_calendar_returns_personalized_matches_unknowns_and_unchanged_official_t
         login(client)
         configured = valid_settings()
         configured["selected_item_codes"] = ["vat"]
-        assert client.put("/api/tools/tax/settings", json=configured).status_code == 200
+        assert client.put(
+            "/api/tools/tax/settings", json=configured, headers=SAME_ORIGIN_HEADERS
+        ).status_code == 200
         response = client.get(
             "/api/calendar",
             params={"region_code": "111000000", "month": "2026-07"},

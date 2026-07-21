@@ -67,6 +67,7 @@ services:
       SESSION_SECRET: "${SESSION_SECRET:?请在 .env 中设置 SESSION_SECRET}"
       DATA_DIR: /data
       COOKIE_SECURE: "${COOKIE_SECURE:-false}"
+      TRUSTED_PROXY_IPS: "${TRUSTED_PROXY_IPS:-}"
       TZ: "${TZ:-Asia/Shanghai}"
       SMTP_HOST: "${SMTP_HOST:-}"
       SMTP_PORT: "${SMTP_PORT:-}"

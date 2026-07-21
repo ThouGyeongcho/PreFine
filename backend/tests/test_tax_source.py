@@ -30,8 +30,11 @@ def json_response(payload: dict[str, Any], status_code: int = 200) -> httpx.Resp
 async def test_maps_valid_month_without_rewriting_bssz() -> None:
     fixture = load_fixture("tax_calendar_success.json")
     observed_form: dict[str, list[str]] = {}
+    observed_request: httpx.Request | None = None
 
     def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal observed_request
+        observed_request = request
         observed_form.update(parse_qs(request.content.decode("utf-8")))
         return json_response(fixture)
 
@@ -42,6 +45,10 @@ async def test_maps_valid_month_without_rewriting_bssz() -> None:
         await client.aclose()
 
     assert observed_form == {"ssjg": ["111000000"], "bssj": ["2026-07"]}
+    assert observed_request is not None
+    assert observed_request.headers["User-Agent"] == (
+        "PreFine/0.1 (+https://github.com/ThouGyeongcho/PreFine)"
+    )
     assert events[0].bssz == fixture["json"]["list"][0]["bssz"]
     assert events[0].start_date.isoformat() == "2026-07-01"
     assert events[0].end_date.isoformat() == "2026-07-15"

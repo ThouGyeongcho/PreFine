@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from backend.app.config import Settings
 from backend.app.main import create_app
 from backend.app.tax_source import SourceCalendarEvent, TaxSourceUnavailableError, YearMonth
+from backend.tests.http_helpers import SAME_ORIGIN_HEADERS
 
 
 class FakeTaxSource:
@@ -130,6 +131,7 @@ def test_manual_sync_waits_for_the_selected_month(tmp_path: Path) -> None:
         login(client)
         response = client.post(
             "/api/tools/tax/sync",
+            headers=SAME_ORIGIN_HEADERS,
             json={"region_code": "111000000", "month": "2026-07"},
         )
 
