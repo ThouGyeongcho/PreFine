@@ -1,0 +1,12 @@
+title = "PreFine Gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+
+  [[rules.allowlists]]
+  description = "Known non-secret session key used only by tests and documentation"
+  regexTarget = "secret"
+  regexes = ['''^0123456789abcdef0123456789abcdef$''']
