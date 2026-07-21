@@ -10,7 +10,7 @@ cp .env.example .env
 docker compose up -d
 ```
 
-容器以非 root 用户运行；入口点会根据 `PUID` 和 `PGID`（默认均为 `1000`）调整 `/data` 的访问权限。`PREFINE_DATA_DIR` 默认为 `./data`，并以主机目录方式挂载到 `/data`；SQLite 数据库文件为 `${PREFINE_DATA_DIR:-./data}/prefine.db`。
+容器以非 root 用户运行；入口点会根据 `PUID` 和 `PGID`（默认均为 `1000`）调整 `/data` 的访问权限。`PREFINE_DATA_DIR` 配置挂载到 `/data` 的主机目录，默认值为 `./data`；SQLite 数据库文件位于该目录的 `prefine.db`。
 
 ## HTTPS 与 Cookie
 
@@ -27,25 +27,89 @@ docker compose up -d
 
 ## 备份与恢复
 
-备份或恢复前先停止应用，避免复制到不完整的 SQLite 状态。默认目录可通过 `PREFINE_DATA_DIR` 覆盖。
+备份或恢复前先停止应用，避免复制到不完整的 SQLite 状态。Docker Compose 会读取 `.env` 来插值 `PREFINE_DATA_DIR`，但直接运行备份命令的主机 shell 不会。以下命令通过 `docker compose config --environment` 读取 Compose 实际用于插值的值；未设置时回退到默认目录。
 
-```bash
+### POSIX sh
+
+备份：
+
+```sh
+prefine_data_dir="$(
+  docker compose config --environment |
+    awk -F= '$1 == "PREFINE_DATA_DIR" { print substr($0, index($0, "=") + 1); exit }'
+)"
+if [ -z "$prefine_data_dir" ]; then
+  prefine_data_dir="./data"
+fi
+backup_dir="./backups"
+
 docker compose stop app
-mkdir -p backups
-cp "${PREFINE_DATA_DIR:-./data}/prefine.db" ./backups/prefine.db
+mkdir -p "$backup_dir"
+cp "$prefine_data_dir/prefine.db" "$backup_dir/prefine.db"
 docker compose start app
 ```
 
-恢复时使用同一个主机目录：
+恢复：
 
-```bash
+```sh
+prefine_data_dir="$(
+  docker compose config --environment |
+    awk -F= '$1 == "PREFINE_DATA_DIR" { print substr($0, index($0, "=") + 1); exit }'
+)"
+if [ -z "$prefine_data_dir" ]; then
+  prefine_data_dir="./data"
+fi
+backup_dir="./backups"
+
 docker compose stop app
-cp ./backups/prefine.db "${PREFINE_DATA_DIR:-./data}/prefine.db"
+cp "$backup_dir/prefine.db" "$prefine_data_dir/prefine.db"
 docker compose start app
 curl http://localhost:8000/api/health
 ```
 
-不要只复制 `-wal` 或 `-shm` 文件。Windows PowerShell 可将 `cp` 替换为 `Copy-Item`，并保持相同的 `${PREFINE_DATA_DIR:-./data}` 目录。
+### PowerShell
+
+备份：
+
+```powershell
+$prefineDataDirLine = docker compose config --environment |
+  Where-Object { $_ -like "PREFINE_DATA_DIR=*" } |
+  Select-Object -First 1
+if ($prefineDataDirLine) {
+  $prefineDataDir = $prefineDataDirLine.Substring($prefineDataDirLine.IndexOf("=") + 1)
+}
+if (-not $prefineDataDir) {
+  $prefineDataDir = ".\data"
+}
+$backupDir = ".\backups"
+
+docker compose stop app
+New-Item -ItemType Directory -LiteralPath $backupDir -Force | Out-Null
+Copy-Item -LiteralPath (Join-Path -Path $prefineDataDir -ChildPath "prefine.db") -Destination (Join-Path -Path $backupDir -ChildPath "prefine.db")
+docker compose start app
+```
+
+恢复：
+
+```powershell
+$prefineDataDirLine = docker compose config --environment |
+  Where-Object { $_ -like "PREFINE_DATA_DIR=*" } |
+  Select-Object -First 1
+if ($prefineDataDirLine) {
+  $prefineDataDir = $prefineDataDirLine.Substring($prefineDataDirLine.IndexOf("=") + 1)
+}
+if (-not $prefineDataDir) {
+  $prefineDataDir = ".\data"
+}
+$backupDir = ".\backups"
+
+docker compose stop app
+Copy-Item -LiteralPath (Join-Path -Path $backupDir -ChildPath "prefine.db") -Destination (Join-Path -Path $prefineDataDir -ChildPath "prefine.db") -Force
+docker compose start app
+Invoke-RestMethod http://localhost:8000/api/health
+```
+
+不要只复制 `-wal` 或 `-shm` 文件。
 
 ## 升级与诊断
 

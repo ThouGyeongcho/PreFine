@@ -28,3 +28,19 @@ def test_local_data_and_secrets_are_ignored() -> None:
     assert "/data" in dockerignore
     assert ".env" in gitignore
     assert ".env" in dockerignore
+
+
+def test_backup_docs_resolve_the_compose_data_directory_for_each_shell() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    operations = (ROOT / "docs" / "operations.md").read_text(encoding="utf-8")
+
+    assert "docker compose config --environment" in operations
+    assert "### POSIX sh" in operations
+    assert "### PowerShell" in operations
+    assert "prefine_data_dir" in operations
+    assert "awk -F=" in operations
+    assert "$prefineDataDir" in operations
+    assert "Join-Path" in operations
+    assert "Copy-Item -LiteralPath" in operations
+    assert "Windows PowerShell 可将 `cp` 替换为 `Copy-Item`" not in operations
+    assert readme.count("${PREFINE_DATA_DIR:-./data}") == 1

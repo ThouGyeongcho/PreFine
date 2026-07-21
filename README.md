@@ -37,7 +37,7 @@ docker compose restart app
 docker compose down
 ```
 
-`docker compose down` 会删除容器和网络，但保留宿主机上的数据目录。不要删除 `${PREFINE_DATA_DIR:-./data}`，除非已完成备份且确定不再需要数据。
+`docker compose down` 会删除容器和网络，但保留宿主机上的数据目录。不要删除由 `PREFINE_DATA_DIR` 配置的数据目录（默认 `./data`），除非已完成备份且确定不再需要数据；备份和恢复步骤请参阅[运行手册](docs/operations.md)。
 
 ### 完整 Compose 文件
 
