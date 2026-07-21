@@ -1,6 +1,7 @@
 import sqlite3
 from contextlib import closing
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -101,3 +102,44 @@ def test_restore_replace_failure_keeps_live_database(
     assert read_value(tmp_path / "prefine.db") == "live-value"
     assert list((tmp_path / "backups").glob("pre-restore-*.db"))
     assert not list(tmp_path.rglob("*.tmp"))
+
+
+def test_backup_cli_prints_snapshot_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    backup = tmp_path / "backups" / "prefine-20260722T000000Z.db"
+    captured_data_dirs: list[Path] = []
+
+    monkeypatch.setattr(
+        maintenance, "get_settings", lambda: SimpleNamespace(data_dir=tmp_path)
+    )
+
+    def create_backup(data_dir: Path) -> Path:
+        captured_data_dirs.append(data_dir)
+        return backup
+
+    monkeypatch.setattr(maintenance, "backup_database", create_backup)
+
+    assert maintenance.main(["backup"]) == 0
+    assert captured_data_dirs == [tmp_path]
+    captured = capsys.readouterr()
+    assert captured.out == f"{backup}\n"
+    assert captured.err == ""
+
+
+def test_backup_cli_reports_maintenance_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(
+        maintenance, "get_settings", lambda: SimpleNamespace(data_dir=tmp_path)
+    )
+
+    def fail_backup(_: Path) -> Path:
+        raise MaintenanceError("denied")
+
+    monkeypatch.setattr(maintenance, "backup_database", fail_backup)
+
+    assert maintenance.main(["backup"]) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == "PreFine database maintenance error: denied\n"
