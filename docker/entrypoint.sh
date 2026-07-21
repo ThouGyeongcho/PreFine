@@ -20,6 +20,10 @@ if ! mkdir -p /data || ! chown -R "$puid:$pgid" /data; then
   exit 73
 fi
 
+if [ "$#" -gt 0 ]; then
+  exec gosu "$puid:$pgid" "$@"
+fi
+
 exec gosu "$puid:$pgid" sh -c '
   set -e
   python -m alembic -c backend/alembic.ini upgrade head

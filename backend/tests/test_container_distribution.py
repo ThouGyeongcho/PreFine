@@ -245,3 +245,13 @@ def test_publish_workflow_validator_accepts_only_canonical_version_tags() -> Non
         "refs/tags/v1.2.x",
     ):
         assert not validator.fullmatch(ref)
+
+
+def test_entrypoint_dispatches_maintenance_commands_after_data_preparation() -> None:
+    entrypoint = (ROOT / "docker" / "entrypoint.sh").read_text(encoding="utf-8")
+
+    command_dispatch = 'if [ "$#" -gt 0 ]; then\n  exec gosu "$puid:$pgid" "$@"\nfi'
+    assert command_dispatch in entrypoint
+    assert entrypoint.index('chown -R "$puid:$pgid" /data') < entrypoint.index(
+        command_dispatch
+    ) < entrypoint.index("python -m alembic")
