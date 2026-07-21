@@ -6,6 +6,12 @@ import { vi } from "vitest";
 import { LoginPage } from "./LoginPage";
 import { jsonResponse, renderWithProviders } from "../test/render";
 
+it("uses exact PreFine brand casing", () => {
+  renderWithProviders(<LoginPage />, "/login");
+
+  expect(screen.getByText("PreFine")).toBeVisible();
+});
+
 it("logs in and redirects to the dashboard", async () => {
   const fetchMock = vi
     .fn()

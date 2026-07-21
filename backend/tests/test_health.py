@@ -56,6 +56,12 @@ def test_health_does_not_require_authentication(tmp_path: Path) -> None:
     }
 
 
+def test_application_uses_exact_prefine_title(tmp_path: Path) -> None:
+    app = create_app(make_settings(tmp_path), start_scheduler=False)
+
+    assert app.title == "PreFine"
+
+
 def test_health_response_never_contains_configuration_values(tmp_path: Path) -> None:
     settings = make_settings(tmp_path)
     app = create_app(settings, start_scheduler=False)

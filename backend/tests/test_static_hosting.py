@@ -23,7 +23,7 @@ def test_spa_routes_and_assets_are_served_without_shadowing_api(tmp_path: Path) 
         '<!doctype html><div id="root">PreFine shell</div>',
         encoding="utf-8",
     )
-    (assets_dir / "app.js").write_text("window.preFine = true", encoding="utf-8")
+    (assets_dir / "app.js").write_text("window.prefine = true", encoding="utf-8")
     app = create_app(
         make_settings(tmp_path / "data"),
         start_scheduler=False,
@@ -41,7 +41,7 @@ def test_spa_routes_and_assets_are_served_without_shadowing_api(tmp_path: Path) 
     assert nested.status_code == 200
     assert "PreFine shell" in nested.text
     assert asset.status_code == 200
-    assert asset.text == "window.preFine = true"
+    assert asset.text == "window.prefine = true"
     assert unknown_api.status_code == 404
     assert unknown_api.headers["content-type"].startswith("application/json")
     assert unknown_api.json() == {

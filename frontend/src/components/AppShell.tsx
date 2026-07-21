@@ -31,14 +31,14 @@ export function AppShell({ children }: { children: ReactNode }) {
         >
           ☰
         </button>
-        <span>财务工具包</span>
+        <span>PreFine</span>
       </header>
       <aside className={`sidebar ${menuOpen ? "sidebar-open" : ""}`}>
         <div className="sidebar-brand">
           <span className="brand-mark brand-mark-small" aria-hidden="true">
             财
           </span>
-          <span>财务工具包</span>
+          <span>PreFine</span>
         </div>
         <nav aria-label="主导航" className="primary-nav">
           {navigation.map((item) => (

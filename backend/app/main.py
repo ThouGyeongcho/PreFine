@@ -77,7 +77,7 @@ def create_app(
                 await source.aclose()
             database.dispose()
 
-    app = FastAPI(title="财务工具包", version=__version__, lifespan=lifespan)
+    app = FastAPI(title="PreFine", version=__version__, lifespan=lifespan)
     app.state.settings = resolved_settings
     install_error_handlers(app)
     app.include_router(build_api_router())

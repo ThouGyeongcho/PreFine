@@ -40,8 +40,8 @@ export function LoginPage() {
         <div className="brand-mark" aria-hidden="true">
           财
         </div>
-        <p className="eyebrow">PREFINE</p>
-        <h1 id="login-title">登录财务工具包</h1>
+        <p className="eyebrow">PreFine</p>
+        <h1 id="login-title">登录 PreFine</h1>
         <p className="muted">使用部署时配置的管理员账号继续。</p>
         <form onSubmit={handleSubmit} className="form-stack">
           <label>

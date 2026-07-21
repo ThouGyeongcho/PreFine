@@ -298,7 +298,7 @@ async def test_test_email_does_not_create_business_deduplication(
     with database.session() as session:
         dispatches = session.scalars(select(EmailDispatch)).all()
     assert dispatches == []
-    assert sender.messages[0][0] == "[财务工具包] 测试邮件"
+    assert sender.messages[0][0] == "[PreFine] 测试邮件"
 
 
 def test_tls_and_starttls_cannot_both_be_enabled(tmp_path: Path) -> None:

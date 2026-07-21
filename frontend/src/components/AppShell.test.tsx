@@ -27,4 +27,5 @@ it("shows the four approved primary navigation destinations", () => {
     "/system",
   );
   expect(screen.getByRole("heading", { name: "当前页面" })).toBeVisible();
+  expect(screen.getAllByText("PreFine")).toHaveLength(2);
 });

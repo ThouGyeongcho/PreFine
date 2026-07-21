@@ -2,7 +2,7 @@
 
 ## 目标
 
-将当前财务工具包第一版初始化为 Git 仓库，并发布到新的私有 GitHub 仓库 `ThouGyeongcho/PreFine`。默认分支为 `main`，发布后远程仓库应包含完整源码、测试、Docker 部署配置和运行文档，不包含密钥、本地数据库、虚拟环境、依赖目录或构建产物。
+将当前 PreFine 第一版初始化为 Git 仓库，并发布到新的私有 GitHub 仓库 `ThouGyeongcho/PreFine`。默认分支为 `main`，发布后远程仓库应包含完整源码、测试、Docker 部署配置和运行文档，不包含密钥、本地数据库、虚拟环境、依赖目录或构建产物。
 
 ## README 结构
 

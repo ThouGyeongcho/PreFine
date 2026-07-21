@@ -71,7 +71,7 @@ def test_test_email_sends_without_creating_a_reminder_dispatch(tmp_path: Path) -
 
     assert response.status_code == 200
     assert response.json() == {"status": "sent"}
-    assert sender.messages[0][0] == "[财务工具包] 测试邮件"
+    assert sender.messages[0][0] == "[PreFine] 测试邮件"
 
 
 def test_test_email_failure_does_not_expose_smtp_diagnostics(tmp_path: Path) -> None:

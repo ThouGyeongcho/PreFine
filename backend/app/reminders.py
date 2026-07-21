@@ -210,8 +210,8 @@ class ReminderService:
             raise SmtpNotConfiguredError("SMTP is not configured")
         local_now = self._local_time(now)
         await self._sender.send(
-            "[财务工具包] 测试邮件",
-            f"这是一封财务工具包测试邮件。\n发送时间：{local_now.isoformat()}\n",
+            "[PreFine] 测试邮件",
+            f"这是一封 PreFine 测试邮件。\n发送时间：{local_now.isoformat()}\n",
         )
         logger.info("test_email status=sent")
 
@@ -320,8 +320,8 @@ def _region_name(region_code: str) -> str:
 
 def _subject(region_name: str, advance_days: int) -> str:
     if advance_days == 0:
-        return f"[财务工具包] {region_name}：今天截止"
-    return f"[财务工具包] {region_name}：{advance_days}天后有税务事项截止"
+        return f"[PreFine] {region_name}：今天截止"
+    return f"[PreFine] {region_name}：{advance_days}天后有税务事项截止"
 
 
 def _body(
