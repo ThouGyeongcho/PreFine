@@ -21,6 +21,7 @@ if ! mkdir -p /data || ! chown -R "$puid:$pgid" /data; then
 fi
 
 exec gosu "$puid:$pgid" sh -c '
+  set -e
   python -m alembic -c backend/alembic.ini upgrade head
   exec python -m uvicorn backend.app.main:create_app \
     --factory \
