@@ -24,6 +24,7 @@ def test_spa_routes_and_assets_are_served_without_shadowing_api(tmp_path: Path) 
         encoding="utf-8",
     )
     (assets_dir / "app.js").write_text("window.prefine = true", encoding="utf-8")
+    (static_dir / "prefine-logo-512.png").write_bytes(b"prefine-logo")
     app = create_app(
         make_settings(tmp_path / "data"),
         start_scheduler=False,
@@ -34,6 +35,7 @@ def test_spa_routes_and_assets_are_served_without_shadowing_api(tmp_path: Path) 
         root = client.get("/")
         nested = client.get("/calendar")
         asset = client.get("/assets/app.js")
+        public_asset = client.get("/prefine-logo-512.png")
         unknown_api = client.get("/api/not-a-real-route")
 
     assert root.status_code == 200
@@ -42,6 +44,9 @@ def test_spa_routes_and_assets_are_served_without_shadowing_api(tmp_path: Path) 
     assert "PreFine shell" in nested.text
     assert asset.status_code == 200
     assert asset.text == "window.prefine = true"
+    assert public_asset.status_code == 200
+    assert public_asset.content == b"prefine-logo"
+    assert public_asset.headers["content-type"] == "image/png"
     assert unknown_api.status_code == 404
     assert unknown_api.headers["content-type"].startswith("application/json")
     assert unknown_api.json() == {

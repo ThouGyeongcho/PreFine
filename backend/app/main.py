@@ -101,6 +101,7 @@ def create_app(
     frontend_index = frontend_dist / "index.html"
     frontend_assets = frontend_dist / "assets"
     if frontend_index.is_file():
+        frontend_root = frontend_dist.resolve()
         if frontend_assets.is_dir():
             app.mount("/assets", StaticFiles(directory=frontend_assets), name="frontend-assets")
 
@@ -108,6 +109,13 @@ def create_app(
         def frontend(path: str) -> FileResponse:
             if path == "api" or path.startswith("api/"):
                 raise HTTPException(status_code=404, detail="Not Found")
+            public_asset = (frontend_root / path).resolve()
+            try:
+                public_asset.relative_to(frontend_root)
+            except ValueError:
+                return FileResponse(frontend_index)
+            if public_asset.is_file():
+                return FileResponse(public_asset)
             return FileResponse(frontend_index)
 
     return app
