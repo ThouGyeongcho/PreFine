@@ -337,9 +337,9 @@ textarea {
 }
 .conversion-panel {
   display: flex;
-  min-height: 390px;
+  min-height: 560px;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
   border: 1px solid var(--divider);
   border-radius: 12px;
   padding: 28px;
@@ -377,16 +377,40 @@ textarea {
 textarea {
   resize: vertical;
 }
+.money-input {
+  height: 128px;
+  min-height: 128px;
+  resize: none;
+  font-size: 18px;
+  line-height: 1.6;
+}
 .conversion-panel .button-primary {
   margin-top: auto;
+  width: 100%;
+}
+.conversion-result-content {
+  display: grid;
+  flex: 1;
+  gap: 16px;
+}
+.primary-result {
+  display: grid;
+  gap: 12px;
+}
+.primary-result .copy-action {
+  width: 100%;
+}
+.primary-result .button {
+  width: auto;
+  flex: 1;
 }
 .conversion-output {
-  min-height: 146px;
+  min-height: 108px;
   overflow-wrap: anywhere;
   border-top: 1px solid var(--divider-strong);
   border-bottom: 1px solid var(--divider-strong);
-  padding: 24px 0;
-  font-size: clamp(20px, 3vw, 30px);
+  padding: 20px 0;
+  font-size: clamp(20px, 2.25vw, 22px);
   font-weight: 500;
   line-height: 1.55;
 }
@@ -399,32 +423,76 @@ textarea {
   color: var(--muted);
 }
 .copy-status {
-  align-self: flex-start;
+  white-space: nowrap;
   color: #2e7d32;
   font-size: 14px;
 }
-.rules-panel {
-  border-top: 1px solid var(--divider);
-  padding-top: 28px;
+.copy-action {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
-.rule-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1px;
-  overflow: hidden;
-  border: 1px solid var(--divider);
-  border-radius: 12px;
-  background: var(--divider);
+.copy-action .button {
+  min-width: 88px;
 }
-.rule-grid div {
-  display: grid;
-  gap: 8px;
-  padding: 20px;
-  background: #fff;
-}
-.rule-grid span {
-  color: var(--muted);
+.normalization-note {
+  margin: 0;
+  border-left: 3px solid var(--accent);
+  padding: 8px 12px;
+  color: var(--body);
+  background: #f5f7ff;
   font-size: 14px;
+}
+.convenient-results {
+  display: grid;
+  border-top: 1px solid var(--divider);
+  padding-top: 16px;
+}
+.convenient-results h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 500;
+}
+.result-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  border-bottom: 1px solid var(--divider);
+  padding: 14px 0;
+}
+.result-row-content {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+.result-label {
+  color: var(--muted);
+  font-size: 12px;
+}
+.result-value {
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-size: 16px;
+  line-height: 1.55;
+}
+.amount-unit {
+  color: var(--accent);
+}
+.amount-digit {
+  color: inherit;
+}
+.copy-error {
+  margin: 0;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .calendar-controls {
@@ -756,10 +824,14 @@ textarea {
     grid-template-columns: 1fr;
   }
   .conversion-panel {
-    min-height: 350px;
+    min-height: 520px;
   }
-  .rule-grid {
+  .result-row {
     grid-template-columns: 1fr;
+  }
+  .result-row .copy-action,
+  .result-row .button {
+    width: 100%;
   }
   .calendar-controls {
     width: 100%;
