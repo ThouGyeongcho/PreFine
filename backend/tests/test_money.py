@@ -5,8 +5,11 @@ import pytest
 from backend.app.money import (
     MoneyFormatError,
     format_amount,
+    format_grouped_amount,
+    format_quick_read,
     from_uppercase,
     parse_amount,
+    to_english,
     to_uppercase,
 )
 
@@ -44,6 +47,57 @@ def test_amounts_round_trip_through_canonical_uppercase(
 
 
 @pytest.mark.parametrize(
+    ("raw", "grouped", "quick", "english"),
+    [
+        ("0", "0", "0", "Zero yuan only"),
+        (
+            "785934",
+            "785,934",
+            "78万5934",
+            "Seven hundred eighty-five thousand nine hundred thirty-four yuan only",
+        ),
+        (
+            "785934455.00",
+            "785,934,455",
+            "7亿8593万4455",
+            "Seven hundred eighty-five million nine hundred thirty-four thousand "
+            "four hundred fifty-five yuan only",
+        ),
+        (
+            "1000000.32",
+            "1,000,000.32",
+            "100万0000.32",
+            "One million yuan and thirty-two fen only",
+        ),
+        (
+            "-12.50",
+            "-12.50",
+            "-12.50",
+            "Negative twelve yuan and fifty fen only",
+        ),
+        (
+            "999999999999999.99",
+            "999,999,999,999,999.99",
+            "999万亿9999亿9999万9999.99",
+            "Nine hundred ninety-nine trillion nine hundred ninety-nine billion "
+            "nine hundred ninety-nine million nine hundred ninety-nine thousand "
+            "nine hundred ninety-nine yuan and ninety-nine fen only",
+        ),
+    ],
+)
+def test_amount_presentations(raw: str, grouped: str, quick: str, english: str) -> None:
+    amount = parse_amount(raw)
+
+    assert format_grouped_amount(amount) == grouped
+    assert format_quick_read(amount) == quick
+    assert to_english(amount) == english
+
+
+def test_uppercase_parser_normalizes_round_to_yuan() -> None:
+    assert from_uppercase("壹佰圆整") == Decimal("100.00")
+
+
+@pytest.mark.parametrize(
     "raw",
     [
         "",
@@ -74,7 +128,6 @@ def test_numeric_parser_rejects_noncanonical_or_out_of_range_input(raw: str) -> 
         "",
         "人民币壹元整",
         "一元整",
-        "壹圆整",
         "壹元正",
         "壹元",
         "壹元零角",
