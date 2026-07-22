@@ -2,7 +2,21 @@
 set -Eeuo pipefail
 
 image="${1:?usage: smoke-test.sh IMAGE}"
+container=""
+smoke_dir=""
+
+cleanup() {
+  if [ -n "${container:-}" ]; then
+    docker rm --force "$container" >/dev/null 2>&1 || true
+  fi
+  if [ -n "${smoke_dir:-}" ]; then
+    rm -rf "$smoke_dir"
+  fi
+}
+
 smoke_dir="$(mktemp -d "${RUNNER_TEMP:-/tmp}/prefine-smoke.XXXXXX")"
+trap cleanup EXIT
+
 container="prefine-smoke-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}"
 cookie_jar="$smoke_dir/cookies.txt"
 credentials_file="$smoke_dir/credentials.env"
@@ -11,12 +25,6 @@ session_secret="$(openssl rand -hex 32)"
 umask 077
 printf 'ADMIN_USERNAME=admin\nADMIN_PASSWORD=%s\nSESSION_SECRET=%s\n' \
   "$admin_password" "$session_secret" >"$credentials_file"
-
-cleanup() {
-  docker rm --force "$container" >/dev/null 2>&1 || true
-  rm -rf "$smoke_dir"
-}
-trap cleanup EXIT
 
 docker run --detach --name "$container" \
   --publish 127.0.0.1::8000 \

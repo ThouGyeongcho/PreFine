@@ -357,6 +357,31 @@ def test_smoke_script_exercises_runtime_security_and_persistence_contracts() -> 
     )
 
 
+def test_smoke_script_installs_cleanup_before_creating_credentials() -> None:
+    smoke_script = (ROOT / "docker" / "smoke-test.sh").read_text(encoding="utf-8")
+    temporary_directory = 'smoke_dir="$(mktemp -d'
+    cleanup_trap = "trap cleanup EXIT"
+    random_password = 'admin_password="$(openssl rand -hex 24)"'
+    random_session_secret = 'session_secret="$(openssl rand -hex 32)"'
+    credentials_write = '>"$credentials_file"'
+    immediate_trap = (
+        'smoke_dir="$(mktemp -d "${RUNNER_TEMP:-/tmp}/prefine-smoke.XXXXXX")"\ntrap cleanup EXIT'
+    )
+
+    assert immediate_trap in smoke_script
+    assert (
+        smoke_script.index(temporary_directory)
+        < smoke_script.index(cleanup_trap)
+        < smoke_script.index(random_password)
+    )
+    assert (
+        smoke_script.index(cleanup_trap)
+        < smoke_script.index(random_session_secret)
+        < smoke_script.index(credentials_write)
+    )
+    assert 'if [ -n "${container:-}" ]; then' in smoke_script
+
+
 def test_publish_release_binds_existing_and_new_releases_to_the_run_commit() -> None:
     release_job = _workflow_job(_publish_workflow(), "publish_release")
     release_step = _workflow_step(release_job, "Create synchronized GitHub Release")
