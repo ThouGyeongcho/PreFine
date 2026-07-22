@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, Response
@@ -18,8 +19,11 @@ from backend.app.errors import ApiError
 from backend.app.money import (
     MoneyFormatError,
     format_amount,
+    format_grouped_amount,
+    format_quick_read,
     from_uppercase,
     parse_amount,
+    to_english,
     to_uppercase,
 )
 from backend.app.reminders import EmailDeliveryError, SmtpNotConfiguredError
@@ -52,13 +56,13 @@ class UppercaseRequest(BaseModel):
     uppercase: str
 
 
-class UppercaseResponse(BaseModel):
+class MoneyConversionResponse(BaseModel):
     amount: str
     uppercase: str
-
-
-class NumberResponse(BaseModel):
-    amount: str
+    grouped: str
+    quick_read: str
+    english: str
+    normalization_note: str | None = None
 
 
 class RegionResponse(BaseModel):
@@ -288,10 +292,10 @@ def build_api_router() -> APIRouter:
 
     @router.post(
         "/money/to-uppercase",
-        response_model=UppercaseResponse,
+        response_model=MoneyConversionResponse,
         dependencies=protected_write_dependencies,
     )
-    def money_to_uppercase(payload: AmountRequest) -> UppercaseResponse:
+    def money_to_uppercase(payload: AmountRequest) -> MoneyConversionResponse:
         try:
             amount = parse_amount(payload.amount)
         except MoneyFormatError as error:
@@ -300,17 +304,14 @@ def build_api_router() -> APIRouter:
                 code="invalid_money_format",
                 message=str(error),
             ) from error
-        return UppercaseResponse(
-            amount=format_amount(amount),
-            uppercase=to_uppercase(amount),
-        )
+        return _money_response(amount)
 
     @router.post(
         "/money/to-number",
-        response_model=NumberResponse,
+        response_model=MoneyConversionResponse,
         dependencies=protected_write_dependencies,
     )
-    def money_to_number(payload: UppercaseRequest) -> NumberResponse:
+    def money_to_number(payload: UppercaseRequest) -> MoneyConversionResponse:
         try:
             amount = from_uppercase(payload.uppercase)
         except MoneyFormatError as error:
@@ -319,9 +320,27 @@ def build_api_router() -> APIRouter:
                 code="invalid_money_format",
                 message=str(error),
             ) from error
-        return NumberResponse(amount=format_amount(amount))
+        normalization_note = (
+            "已按标准写法转换：“圆”应写作“元”。" if "圆" in payload.uppercase else None
+        )
+        return _money_response(amount, normalization_note=normalization_note)
 
     return router
+
+
+def _money_response(
+    amount: Decimal,
+    *,
+    normalization_note: str | None = None,
+) -> MoneyConversionResponse:
+    return MoneyConversionResponse(
+        amount=format_amount(amount),
+        uppercase=to_uppercase(amount),
+        grouped=format_grouped_amount(amount),
+        quick_read=format_quick_read(amount),
+        english=to_english(amount),
+        normalization_note=normalization_note,
+    )
 
 
 def _validate_region(regions: list[Region], region_code: str) -> Region:
