@@ -133,6 +133,26 @@ def _workflow_step(job: str, name: str) -> str:
     return step.group("body")
 
 
+def test_publish_workflow_upgrades_pip_before_auditing() -> None:
+    verify_source = _workflow_job(_publish_workflow(), "verify_source")
+    tool_install = _workflow_step(verify_source, "Install backend verification tools")
+    backend_verification = _workflow_step(verify_source, "Verify backend")
+    pip_upgrade = "python -m pip install --upgrade 'pip==26.1.2'"
+    verification_tool_install = "python -m pip install '.[dev]' 'pip-audit==2.10.1'"
+    pip_audit = "python -m pip_audit"
+
+    pip_install_commands = [
+        line.strip()
+        for line in tool_install.splitlines()
+        if line.strip().startswith("python -m pip install")
+    ]
+    assert pip_install_commands == [pip_upgrade, verification_tool_install]
+    assert pip_audit in backend_verification
+    assert verify_source.index(pip_upgrade) < verify_source.index(
+        verification_tool_install
+    ) < verify_source.index(pip_audit)
+
+
 def test_publish_workflow_gates_source_image_and_release_publication() -> None:
     workflow = _publish_workflow()
     validate_ref = _workflow_job(workflow, "validate_ref")
