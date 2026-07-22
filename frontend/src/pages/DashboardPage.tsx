@@ -38,8 +38,8 @@ export function DashboardPage() {
       <section className="tool-grid" aria-label="工具入口">
         <Link to="/money" className="tool-card">
           <span className="tool-card-kicker">金额工具</span>
-          <h2>人民币大小写转换</h2>
-          <p>严格处理角分、负数和规范大写回环。</p>
+          <h2>金额转换</h2>
+          <p>提供规范大写、快速读数和完整英文金额。</p>
           <span className="text-link">打开工具 →</span>
         </Link>
         <Link to="/calendar" className="tool-card">

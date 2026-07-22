@@ -37,11 +37,9 @@ export function LoginPage() {
   return (
     <main className="login-page">
       <section className="login-card" aria-labelledby="login-title">
-        <div className="brand-mark" aria-hidden="true">
-          财
-        </div>
-        <p className="eyebrow">PreFine</p>
-        <h1 id="login-title">登录 PreFine</h1>
+        <img className="brand-mark" src="/prefine-logo-512.png" alt="PreFine" />
+        <p className="login-brand-name">PreFine</p>
+        <h1 id="login-title">管理员登录</h1>
         <p className="muted">使用部署时配置的管理员账号继续。</p>
         <form onSubmit={handleSubmit} className="form-stack">
           <label>

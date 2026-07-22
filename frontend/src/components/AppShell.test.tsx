@@ -17,7 +17,7 @@ it("shows the four approved primary navigation destinations", () => {
     "href",
     "/",
   );
-  expect(screen.getByRole("link", { name: "金额大小写转换" })).toHaveAttribute(
+  expect(screen.getByRole("link", { name: "金额转换" })).toHaveAttribute(
     "href",
     "/money",
   );
@@ -31,6 +31,10 @@ it("shows the four approved primary navigation destinations", () => {
   );
   expect(screen.getByRole("heading", { name: "当前页面" })).toBeVisible();
   expect(screen.getAllByText("PreFine")).toHaveLength(2);
+  expect(document.querySelector(".sidebar-brand img")).toHaveAttribute(
+    "src",
+    "/prefine-logo-512.png",
+  );
 });
 
 it("clears authenticated queries after logout", async () => {

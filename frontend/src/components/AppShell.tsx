@@ -6,7 +6,7 @@ import { apiRequest } from "../api/client";
 
 const navigation = [
   { to: "/", label: "工作台", icon: "⌂", end: true },
-  { to: "/money", label: "金额大小写转换", icon: "¥", end: false },
+  { to: "/money", label: "金额转换", icon: "¥", end: false },
   { to: "/calendar", label: "税收日历", icon: "日", end: false },
   { to: "/system", label: "系统设置", icon: "⚙", end: false },
 ];
@@ -38,9 +38,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       </header>
       <aside className={`sidebar ${menuOpen ? "sidebar-open" : ""}`}>
         <div className="sidebar-brand">
-          <span className="brand-mark brand-mark-small" aria-hidden="true">
-            财
-          </span>
+          <img
+            className="brand-mark brand-mark-small"
+            src="/prefine-logo-512.png"
+            alt=""
+            aria-hidden="true"
+          />
           <span>PreFine</span>
         </div>
         <nav aria-label="主导航" className="primary-nav">

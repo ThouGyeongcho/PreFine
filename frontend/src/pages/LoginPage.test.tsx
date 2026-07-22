@@ -7,10 +7,15 @@ import { LoginPage } from "./LoginPage";
 import { SessionBoundary } from "../components/SessionBoundary";
 import { jsonResponse, renderWithProviders } from "../test/render";
 
-it("uses exact PreFine brand casing", () => {
+it("uses the confirmed PreFine logo and a non-repeating login title", () => {
   renderWithProviders(<LoginPage />, "/login");
 
-  expect(screen.getByText("PreFine")).toBeVisible();
+  expect(screen.getByRole("img", { name: "PreFine" })).toHaveAttribute(
+    "src",
+    "/prefine-logo-512.png",
+  );
+  expect(screen.getAllByText("PreFine")).toHaveLength(1);
+  expect(screen.getByRole("heading", { name: "管理员登录" })).toBeVisible();
 });
 
 it("logs in and redirects to the dashboard", async () => {

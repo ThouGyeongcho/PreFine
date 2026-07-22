@@ -25,6 +25,7 @@ it("prompts for tax settings when the profile is incomplete", async () => {
   expect(
     await screen.findByText("完成税务工具设置后启用个性化摘要"),
   ).toBeVisible();
+  expect(screen.getByRole("heading", { name: "金额转换" })).toBeVisible();
 });
 
 it("shows a personalized calendar summary for a complete profile", async () => {
