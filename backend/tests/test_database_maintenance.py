@@ -1,4 +1,6 @@
 import sqlite3
+import subprocess
+import sys
 from contextlib import closing
 from pathlib import Path
 from types import SimpleNamespace
@@ -44,6 +46,128 @@ def test_restore_preserves_pre_restore_copy_and_replaces_atomically(tmp_path: Pa
     assert read_value(tmp_path / "prefine.db") == "restored"
     assert safety.name.startswith("pre-restore-")
     assert read_value(safety) == "new-live"
+
+
+def test_restore_quarantines_crashed_wal_sidecars_before_replacing_live_database(
+    tmp_path: Path,
+) -> None:
+    live = tmp_path / "prefine.db"
+    write_value(live, "old-live")
+    source = backup_database(tmp_path)
+    write_value(source, "restored")
+
+    crash_writer = "\n".join(
+        (
+            "import os, sqlite3, sys",
+            "connection = sqlite3.connect(sys.argv[1])",
+            "connection.execute('PRAGMA journal_mode=WAL')",
+            "connection.execute('PRAGMA wal_autocheckpoint=0')",
+            "connection.execute('UPDATE sample SET value = ?', ('stale-wal',))",
+            "connection.commit()",
+            "os._exit(0)",
+        )
+    )
+    subprocess.run(
+        [sys.executable, "-c", crash_writer, str(live)],
+        check=True,
+    )
+    sidecars = [Path(f"{live}-wal"), Path(f"{live}-shm")]
+    assert all(sidecar.is_file() for sidecar in sidecars)
+
+    restore_database(tmp_path, source.name)
+
+    assert read_value(live) == "restored"
+    assert not any(sidecar.exists() for sidecar in sidecars)
+    assert not list(tmp_path.glob(".prefine-sidecar-*.quarantine"))
+
+
+def test_restore_replace_failure_restores_quarantined_wal_sidecars(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    live = tmp_path / "prefine.db"
+    write_value(live, "old-live")
+    source = backup_database(tmp_path)
+    write_value(source, "restored")
+    crash_writer = "\n".join(
+        (
+            "import os, sqlite3, sys",
+            "connection = sqlite3.connect(sys.argv[1])",
+            "connection.execute('PRAGMA journal_mode=WAL')",
+            "connection.execute('PRAGMA wal_autocheckpoint=0')",
+            "connection.execute('UPDATE sample SET value = ?', ('stale-wal',))",
+            "connection.commit()",
+            "os._exit(0)",
+        )
+    )
+    subprocess.run([sys.executable, "-c", crash_writer, str(live)], check=True)
+    sidecars = [Path(f"{live}-wal"), Path(f"{live}-shm")]
+    real_replace = maintenance.os.replace
+    replacements: list[tuple[Path, Path]] = []
+
+    def fail_live_replace(source_path: Path, destination_path: Path) -> None:
+        replacements.append((Path(source_path), Path(destination_path)))
+        if destination_path == live and source_path.name.startswith(".prefine-restore-"):
+            raise OSError("replace denied")
+        real_replace(source_path, destination_path)
+
+    monkeypatch.setattr(maintenance.os, "replace", fail_live_replace)
+
+    with pytest.raises(MaintenanceError, match="Could not replace live"):
+        restore_database(tmp_path, source.name)
+
+    assert all(sidecar.is_file() for sidecar in sidecars)
+    assert any(destination.suffix == ".quarantine" for _, destination in replacements)
+    assert all(
+        any(
+            source_path.suffix == ".quarantine" and destination == sidecar
+            for source_path, destination in replacements
+        )
+        for sidecar in sidecars
+    )
+    assert not list(tmp_path.glob(".prefine-sidecar-*.quarantine"))
+    assert read_value(live) == "stale-wal"
+
+
+def _symlink_directory_or_skip(link: Path, target: Path) -> None:
+    try:
+        link.symlink_to(target, target_is_directory=True)
+        return
+    except (NotImplementedError, OSError) as symlink_error:
+        if sys.platform != "win32":
+            pytest.skip(f"directory symlinks are unavailable: {symlink_error}")
+    junction = subprocess.run(
+        ["cmd", "/c", "mklink", "/J", str(link), str(target)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if junction.returncode != 0:
+        pytest.skip(f"directory symlinks and junctions are unavailable: {junction.stderr.strip()}")
+
+
+def test_backup_rejects_symlinked_backup_directory_escape(tmp_path: Path) -> None:
+    write_value(tmp_path / "prefine.db", "live")
+    outside = tmp_path.parent / f"{tmp_path.name}-outside-backups"
+    outside.mkdir()
+    _symlink_directory_or_skip(tmp_path / "backups", outside)
+
+    with pytest.raises(MaintenanceError, match="Backup directory"):
+        backup_database(tmp_path)
+
+    assert not list(outside.iterdir())
+
+
+def test_restore_rejects_symlinked_backup_directory_escape(tmp_path: Path) -> None:
+    write_value(tmp_path / "prefine.db", "live")
+    outside = tmp_path.parent / f"{tmp_path.name}-outside-backups"
+    outside.mkdir()
+    write_value(outside / "outside.db", "outside")
+    _symlink_directory_or_skip(tmp_path / "backups", outside)
+
+    with pytest.raises(MaintenanceError, match="Backup directory"):
+        restore_database(tmp_path, "outside.db")
+
+    assert read_value(tmp_path / "prefine.db") == "live"
 
 
 @pytest.mark.parametrize("name", ["../prefine.db", "/tmp/prefine.db", "missing.db"])
@@ -110,9 +234,7 @@ def test_backup_cli_prints_snapshot_path(
     backup = tmp_path / "backups" / "prefine-20260722T000000Z.db"
     captured_data_dirs: list[Path] = []
 
-    monkeypatch.setattr(
-        maintenance, "get_settings", lambda: SimpleNamespace(data_dir=tmp_path)
-    )
+    monkeypatch.setattr(maintenance, "get_settings", lambda: SimpleNamespace(data_dir=tmp_path))
 
     def create_backup(data_dir: Path) -> Path:
         captured_data_dirs.append(data_dir)
@@ -130,9 +252,7 @@ def test_backup_cli_prints_snapshot_path(
 def test_backup_cli_reports_maintenance_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    monkeypatch.setattr(
-        maintenance, "get_settings", lambda: SimpleNamespace(data_dir=tmp_path)
-    )
+    monkeypatch.setattr(maintenance, "get_settings", lambda: SimpleNamespace(data_dir=tmp_path))
 
     def fail_backup(_: Path) -> Path:
         raise MaintenanceError("denied")

@@ -5,6 +5,7 @@ import os
 import sqlite3
 import sys
 import tempfile
+import uuid
 from contextlib import closing
 from datetime import UTC, datetime
 from pathlib import Path
@@ -61,11 +62,31 @@ def _final_path(directory: Path, prefix: str) -> Path:
     return path
 
 
+def _backup_directory(data_dir: Path) -> Path:
+    data_root = data_dir.resolve()
+    backup_dir = data_root / "backups"
+    is_junction = getattr(backup_dir, "is_junction", lambda: False)
+    if backup_dir.is_symlink() or is_junction():
+        raise MaintenanceError("Backup directory must not be a symbolic link")
+    try:
+        backup_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as error:
+        raise MaintenanceError("Could not create backup directory") from error
+    if backup_dir.is_symlink() or is_junction() or not backup_dir.is_dir():
+        raise MaintenanceError("Backup directory must be a regular directory")
+    resolved = backup_dir.resolve()
+    try:
+        resolved.relative_to(data_root)
+    except ValueError as error:
+        raise MaintenanceError("Backup directory escaped the data directory") from error
+    return resolved
+
+
 def backup_database(data_dir: Path, prefix: str = "prefine") -> Path:
     source = data_dir / "prefine.db"
     if not source.is_file() or source.is_symlink():
         raise MaintenanceError("Live database /data/prefine.db is missing")
-    backup_dir = data_dir / "backups"
+    backup_dir = _backup_directory(data_dir)
     temporary = _temporary_path(backup_dir, f".{prefix}-")
     try:
         _copy_database(source, temporary)
@@ -83,7 +104,7 @@ def backup_database(data_dir: Path, prefix: str = "prefine") -> Path:
 def _resolve_backup(data_dir: Path, backup_name: str) -> Path:
     if Path(backup_name).name != backup_name:
         raise MaintenanceError("Restore source must be a backup file name")
-    backup_dir = (data_dir / "backups").resolve()
+    backup_dir = _backup_directory(data_dir)
     candidate = backup_dir / backup_name
     if candidate.is_symlink() or not candidate.is_file():
         raise MaintenanceError(f"Backup does not exist: {backup_name}")
@@ -91,6 +112,45 @@ def _resolve_backup(data_dir: Path, backup_name: str) -> Path:
     if resolved.parent != backup_dir:
         raise MaintenanceError("Restore source escaped /data/backups")
     return resolved
+
+
+def _quarantine_sidecars(live: Path) -> list[tuple[Path, Path]]:
+    quarantined: list[tuple[Path, Path]] = []
+    try:
+        for suffix in ("-wal", "-shm"):
+            sidecar = Path(f"{live}{suffix}")
+            if not os.path.lexists(sidecar):
+                continue
+            quarantine = live.parent / (f".prefine-sidecar-{uuid.uuid4().hex}.quarantine")
+            os.replace(sidecar, quarantine)
+            quarantined.append((sidecar, quarantine))
+    except OSError as error:
+        try:
+            _restore_quarantined_sidecars(quarantined)
+        except MaintenanceError as rollback_error:
+            raise MaintenanceError(
+                "Could not quarantine SQLite sidecars and rollback failed"
+            ) from rollback_error
+        raise MaintenanceError("Could not quarantine SQLite sidecars") from error
+    return quarantined
+
+
+def _restore_quarantined_sidecars(
+    quarantined: list[tuple[Path, Path]],
+) -> None:
+    try:
+        for sidecar, quarantine in reversed(quarantined):
+            os.replace(quarantine, sidecar)
+    except OSError as error:
+        raise MaintenanceError("Could not restore SQLite sidecars") from error
+
+
+def _discard_quarantined_sidecars(quarantined: list[tuple[Path, Path]]) -> None:
+    try:
+        for _, quarantine in quarantined:
+            quarantine.unlink(missing_ok=True)
+    except OSError as error:
+        raise MaintenanceError("Could not remove quarantined SQLite sidecars") from error
 
 
 def restore_database(data_dir: Path, backup_name: str) -> Path:
@@ -102,7 +162,18 @@ def restore_database(data_dir: Path, backup_name: str) -> Path:
     try:
         _copy_database(source, temporary)
         _integrity_check(temporary)
-        os.replace(temporary, live)
+        quarantined = _quarantine_sidecars(live)
+        try:
+            os.replace(temporary, live)
+        except OSError as error:
+            try:
+                _restore_quarantined_sidecars(quarantined)
+            except MaintenanceError as rollback_error:
+                raise MaintenanceError(
+                    "Could not replace live SQLite database and sidecar rollback failed"
+                ) from rollback_error
+            raise MaintenanceError("Could not replace live SQLite database") from error
+        _discard_quarantined_sidecars(quarantined)
         return safety
     except (MaintenanceError, OSError) as error:
         temporary.unlink(missing_ok=True)
