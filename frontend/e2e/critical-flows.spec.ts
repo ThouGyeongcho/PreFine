@@ -161,3 +161,23 @@ test("@mobile mobile layout keeps core actions reachable without page overflow",
   );
   expect(pageOverflows).toBe(false);
 });
+
+test("@desktop logout prevents browser back from restoring private data", async ({
+  page,
+}) => {
+  await mockCalendarApis(page);
+  await login(page);
+  await page.getByRole("link", { name: "税收日历", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "税收日历" })).toBeVisible();
+  await page.getByRole("button", { name: "退出登录" }).click();
+  await expect(
+    page.getByRole("heading", { name: "登录 PreFine" }),
+  ).toBeVisible();
+
+  await page.goBack();
+
+  await expect(
+    page.getByRole("heading", { name: "登录 PreFine" }),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "税收日历" })).toHaveCount(0);
+});

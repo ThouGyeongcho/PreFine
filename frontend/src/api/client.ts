@@ -1,3 +1,5 @@
+import { notifyUnauthorized } from "./session";
+
 export interface ApiErrorBody {
   code: string;
   message: string;
@@ -44,7 +46,10 @@ export async function apiRequest<T>(
       ...init.headers,
     },
   });
-  if (!response.ok) throw await ApiError.fromResponse(response);
+  if (!response.ok) {
+    if (response.status === 401) notifyUnauthorized();
+    throw await ApiError.fromResponse(response);
+  }
   return response.status === 204
     ? (undefined as T)
     : ((await response.json()) as T);

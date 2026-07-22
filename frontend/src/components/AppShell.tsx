@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 
@@ -13,9 +14,11 @@ const navigation = [
 export function AppShell({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   async function logout() {
     await apiRequest<void>("/api/auth/logout", { method: "POST" });
+    queryClient.clear();
     navigate("/login", { replace: true });
   }
 

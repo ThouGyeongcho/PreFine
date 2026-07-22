@@ -36,6 +36,15 @@ function editable(settings: Settings): EditableSettings {
   };
 }
 
+function parseReminderDays(value: string) {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter((item) => item !== "")
+    .map(Number)
+    .filter(Number.isInteger);
+}
+
 function errorMessage(error: unknown) {
   return error instanceof ApiError ? error.message : "保存失败，请稍后重试";
 }
@@ -49,6 +58,9 @@ export function TaxToolSettings({
   const [draft, setDraft] = useState<EditableSettings>(() =>
     editable(settings),
   );
+  const [reminderDaysInput, setReminderDaysInput] = useState(() =>
+    settings.reminder_days.join(","),
+  );
   const [message, setMessage] = useState<string | null>(null);
 
   const save = useMutation({
@@ -58,11 +70,15 @@ export function TaxToolSettings({
         body: JSON.stringify(payload),
       }),
     onSuccess: (saved) => {
+      const normalized = editable(saved);
+      setDraft(normalized);
+      setReminderDaysInput(saved.reminder_days.join(","));
       setMessage("设置已保存");
       onSaved(saved);
     },
     onError: (error) => {
       setDraft(editable(settings));
+      setReminderDaysInput(settings.reminder_days.join(","));
       setMessage(errorMessage(error));
     },
   });
@@ -79,7 +95,10 @@ export function TaxToolSettings({
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage(null);
-    save.mutate(draft);
+    save.mutate({
+      ...draft,
+      reminder_days: parseReminderDays(reminderDaysInput),
+    });
   }
 
   function toggleItem(code: string, checked: boolean) {
@@ -183,18 +202,9 @@ export function TaxToolSettings({
         <label>
           提前提醒天数
           <input
-            value={draft.reminder_days.join(",")}
+            value={reminderDaysInput}
             inputMode="numeric"
-            onChange={(event) => {
-              const reminderDays = event.target.value
-                .split(",")
-                .map((value) => Number(value.trim()))
-                .filter((value) => Number.isInteger(value));
-              setDraft((current) => ({
-                ...current,
-                reminder_days: reminderDays,
-              }));
-            }}
+            onChange={(event) => setReminderDaysInput(event.target.value)}
           />
         </label>
 

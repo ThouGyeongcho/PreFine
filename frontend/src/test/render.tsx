@@ -8,11 +8,12 @@ export function renderWithProviders(ui: ReactElement, route = "/") {
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   window.history.pushState({}, "Test page", route);
-  return render(
+  const result = render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>
     </QueryClientProvider>,
   );
+  return { ...result, queryClient };
 }
 
 export function jsonResponse(body: unknown, status = 200): Response {

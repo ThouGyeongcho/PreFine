@@ -88,7 +88,11 @@ const calendar = {
 };
 
 function mockApi(
-  options: { settings?: typeof configuredSettings; putFails?: boolean } = {},
+  options: {
+    settings?: typeof configuredSettings;
+    putFails?: boolean;
+    normalizedReminderDays?: number[];
+  } = {},
 ) {
   const settings = options.settings ?? configuredSettings;
   return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -105,6 +109,7 @@ function mockApi(
       const body = JSON.parse(String(init?.body));
       return jsonResponse({
         ...body,
+        reminder_days: options.normalizedReminderDays ?? body.reminder_days,
         profile_complete: true,
         email_configured: false,
       });
@@ -195,4 +200,27 @@ it("restores persisted settings when saving fails", async () => {
     "保存失败",
   );
   expect(identity).toHaveValue("general_taxpayer");
+});
+
+it("filters blank reminder tokens and adopts the normalized server value", async () => {
+  const fetchMock = mockApi({ normalizedReminderDays: [3, 7] });
+  vi.stubGlobal("fetch", fetchMock);
+  const user = userEvent.setup();
+  renderWithProviders(<CalendarPage />);
+
+  const panel = await screen.findByRole("region", {
+    name: "税务工具设置",
+  });
+  const reminderInput = within(panel).getByLabelText("提前提醒天数");
+  await user.clear(reminderInput);
+  await user.type(reminderInput, "7, ,3,");
+  await user.click(within(panel).getByRole("button", { name: "保存税务设置" }));
+
+  const putCall = fetchMock.mock.calls.find(
+    ([url, init]) =>
+      url === "/api/tools/tax/settings" && init?.method === "PUT",
+  );
+  expect(JSON.parse(String(putCall?.[1]?.body)).reminder_days).toEqual([7, 3]);
+  expect(await within(panel).findByText("设置已保存")).toBeVisible();
+  expect(reminderInput).toHaveValue("3,7");
 });
