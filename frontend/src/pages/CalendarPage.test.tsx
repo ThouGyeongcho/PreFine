@@ -190,8 +190,12 @@ it("restores persisted settings when saving fails", async () => {
     name: "税务工具设置",
   });
   const identity = within(settingsPanel).getByLabelText("纳税人身份");
+  const reminderInput = within(settingsPanel).getByLabelText("提前提醒天数");
   expect(identity).toHaveValue("general_taxpayer");
+  expect(reminderInput).toHaveValue("7,3,1");
   await user.selectOptions(identity, "small_scale_taxpayer");
+  await user.clear(reminderInput);
+  await user.type(reminderInput, "9,");
   await user.click(
     within(settingsPanel).getByRole("button", { name: "保存税务设置" }),
   );
@@ -200,6 +204,7 @@ it("restores persisted settings when saving fails", async () => {
     "保存失败",
   );
   expect(identity).toHaveValue("general_taxpayer");
+  expect(reminderInput).toHaveValue("7,3,1");
 });
 
 it("filters blank reminder tokens and adopts the normalized server value", async () => {

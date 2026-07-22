@@ -4,6 +4,7 @@ import { Route, Routes } from "react-router-dom";
 import { vi } from "vitest";
 
 import { LoginPage } from "./LoginPage";
+import { SessionBoundary } from "../components/SessionBoundary";
 import { jsonResponse, renderWithProviders } from "../test/render";
 
 it("uses exact PreFine brand casing", () => {
@@ -52,7 +53,14 @@ it("shows the server login error without clearing the password", async () => {
     ),
   );
   const user = userEvent.setup();
-  renderWithProviders(<LoginPage />, "/login");
+  renderWithProviders(
+    <SessionBoundary>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+      </Routes>
+    </SessionBoundary>,
+    "/login",
+  );
 
   await user.type(screen.getByLabelText("用户名"), "admin");
   await user.type(screen.getByLabelText("密码"), "wrong");
