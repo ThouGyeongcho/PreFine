@@ -133,30 +133,91 @@ def _validator_pattern(workflow: str) -> str:
     return validator.group("pattern")
 
 
-def test_publish_workflow_is_pinned_and_multi_architecture() -> None:
+def _workflow_job(workflow: str, name: str) -> str:
+    job = re.search(
+        rf"^  {re.escape(name)}:\n(?P<body>.*?)(?=^  [a-z_]+:\n|\Z)",
+        workflow,
+        re.MULTILINE | re.DOTALL,
+    )
+    assert job is not None
+    return job.group("body")
+
+
+def test_publish_workflow_gates_source_image_and_release_publication() -> None:
     workflow = _publish_workflow()
+    validate_ref = _workflow_job(workflow, "validate_ref")
+    verify_source = _workflow_job(workflow, "verify_source")
+    smoke_image = _workflow_job(workflow, "smoke_image")
+    image_job = _workflow_job(workflow, "publish_image")
+    release_job = _workflow_job(workflow, "publish_release")
 
     permissions = re.search(
         r"^permissions:\n(?P<mapping>(?:^  [^\n]+\n)+)", workflow, re.MULTILINE
     )
     assert permissions is not None
-    assert permissions.group("mapping") == "  contents: read\n  packages: write\n"
+    assert permissions.group("mapping") == "  contents: read\n"
+
+    assert (
+        "if: github.event_name != 'workflow_dispatch' || github.ref == "
+        "'refs/heads/main'"
+    ) in validate_ref
+    assert (
+        '[[ "$GITHUB_REF" =~ ^refs/tags/v(0|[1-9][0-9]*)\\.'
+        r'(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]'
+    ) in validate_ref
+    assert "needs: validate_ref" in verify_source
+    assert "needs: verify_source" in smoke_image
+    assert "needs: smoke_image" in image_job
+    assert "needs: publish_image" in release_job
+    assert workflow.index("needs: verify_source") < workflow.index("needs: smoke_image")
+    assert workflow.index("Verify multi-architecture manifest") < workflow.index(
+        "gh release create"
+    )
+
+    assert "permissions:\n      contents: read\n      packages: write" in image_job
+    assert "permissions:\n      contents: write" in release_job
+    assert "--verify-tag" in release_job
+    assert "--generate-notes" in release_job
+    assert "if: startsWith(github.ref, 'refs/tags/v')" in release_job
+
+    for source_gate in (
+        "python -m pytest backend/tests",
+        "python -m ruff check backend",
+        "python -m pip_audit",
+        "pnpm --dir frontend audit --prod --audit-level high",
+        "pnpm --dir frontend exec playwright",
+        "gitleaks git --redact",
+    ):
+        assert source_gate in verify_source
+    assert "docker/smoke-test.sh prefine:smoke" in smoke_image
 
     expected_action_refs = [
+        ("actions/checkout", "3d3c42e5aac5ba805825da76410c181273ba90b1"),
+        ("actions/setup-python", "5fda3b95a4ea91299a34e894583c3862153e4b97"),
+        ("actions/setup-node", "820762786026740c76f36085b0efc47a31fe5020"),
+        ("actions/checkout", "3d3c42e5aac5ba805825da76410c181273ba90b1"),
+        ("docker/setup-buildx-action", "bb05f3f5519dd87d3ba754cc423b652a5edd6d2c"),
+        ("docker/build-push-action", "53b7df96c91f9c12dcc8a07bcb9ccacbed38856a"),
         ("actions/checkout", "3d3c42e5aac5ba805825da76410c181273ba90b1"),
         ("docker/setup-qemu-action", "96fe6ef7f33517b61c61be40b68a1882f3264fb8"),
         ("docker/setup-buildx-action", "bb05f3f5519dd87d3ba754cc423b652a5edd6d2c"),
         ("docker/login-action", "af1e73f918a031802d376d3c8bbc3fe56130a9b0"),
         ("docker/metadata-action", "dc802804100637a589fabce1cb79ff13a1411302"),
         ("docker/build-push-action", "53b7df96c91f9c12dcc8a07bcb9ccacbed38856a"),
+        ("actions/checkout", "3d3c42e5aac5ba805825da76410c181273ba90b1"),
     ]
     actual_action_refs = re.findall(
         r"^\s*uses:\s*([^@\s]+)@([^\s#]+)", workflow, re.MULTILINE
     )
     assert actual_action_refs == expected_action_refs
     assert all(re.fullmatch(r"[0-9a-f]{40}", sha) for _, sha in actual_action_refs)
+    assert "uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97" in workflow
+    assert "uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020" in workflow
 
-    assert "linux/amd64,linux/arm64" in workflow
+    assert "platforms: linux/amd64" in smoke_image
+    assert "load: true" in smoke_image
+    assert "tags: prefine:smoke" in smoke_image
+    assert "linux/amd64,linux/arm64" in image_job
     assert "ghcr.io/thougyeongcho/prefine" in workflow
     assert (
         "    if: github.event_name != 'workflow_dispatch' || github.ref == "
@@ -166,7 +227,7 @@ def test_publish_workflow_is_pinned_and_multi_architecture() -> None:
     metadata = re.search(
         r"^      - name: Generate image metadata\n(?P<step>.*?)"
         r"(?=^      - name: Build and push image\n)",
-        workflow,
+        image_job,
         re.MULTILINE | re.DOTALL,
     )
     assert metadata is not None
@@ -183,13 +244,13 @@ def test_publish_workflow_is_pinned_and_multi_architecture() -> None:
         "            type=semver,pattern={{version}},"
         "enable=${{ startsWith(github.ref, 'refs/tags/v') }}",
     ]
-    assert "pattern={{major}}" not in workflow
-    assert "pattern={{major}}.{{minor}}" not in workflow
+    assert "pattern={{major}}" not in image_job
+    assert "pattern={{major}}.{{minor}}" not in image_job
 
     build = re.search(
         r"^      - name: Build and push image\n(?P<step>.*?)"
         r"(?=^      - name: Verify multi-architecture manifest\n)",
-        workflow,
+        image_job,
         re.MULTILINE | re.DOTALL,
     )
     assert build is not None
@@ -205,7 +266,7 @@ def test_publish_workflow_is_pinned_and_multi_architecture() -> None:
 
     manifest = re.search(
         r"^      - name: Verify multi-architecture manifest\n(?P<step>.*)$",
-        workflow,
+        image_job,
         re.MULTILINE | re.DOTALL,
     )
     assert manifest is not None
@@ -214,14 +275,26 @@ def test_publish_workflow_is_pinned_and_multi_architecture() -> None:
     assert "grep -q 'linux/amd64'" in manifest_step
     assert "grep -q 'linux/arm64'" in manifest_step
 
-    validation_offset = workflow.index("      - name: Validate publication ref")
-    for action_name in (
-        "      - name: Set up QEMU",
-        "      - name: Set up Docker Buildx",
-        "      - name: Log in to GHCR",
-        "      - name: Build and push image",
-    ):
-        assert validation_offset < workflow.index(action_name)
+
+
+def test_smoke_script_exercises_runtime_security_and_persistence_contracts() -> None:
+    smoke_script = (ROOT / "docker" / "smoke-test.sh").read_text(encoding="utf-8")
+
+    assert "set -Eeuo pipefail" in smoke_script
+    assert "trap cleanup EXIT" in smoke_script
+    assert "docker rm --force \"$container\"" in smoke_script
+    assert "awk '/^Uid:/{print $2}' /proc/1/status" in smoke_script
+    assert 'test "$(docker exec "$container"' in smoke_script
+    assert '"$base_url/api/health"' in smoke_script
+    assert '"$base_url/api/auth/login"' in smoke_script
+    assert "--request PUT" in smoke_script
+    assert '"Origin: $base_url"' in smoke_script
+    assert '"$base_url/api/tools/tax/settings"' in smoke_script
+    assert "docker restart \"$container\"" in smoke_script
+    assert smoke_script.count(".reminder_days == [9,4]") == 2
+    assert smoke_script.index("docker restart \"$container\"") < smoke_script.rindex(
+        '"$base_url/api/tools/tax/settings"'
+    )
 
 
 def test_publish_workflow_validator_accepts_only_canonical_version_tags() -> None:
