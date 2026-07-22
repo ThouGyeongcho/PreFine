@@ -357,6 +357,88 @@ def test_smoke_script_exercises_runtime_security_and_persistence_contracts() -> 
     )
 
 
+def test_smoke_health_wait_is_bounded_stage_aware_and_refreshes_the_port() -> None:
+    smoke_script = (ROOT / "docker" / "smoke-test.sh").read_text(encoding="utf-8")
+    wait = re.search(
+        r"^wait_for_health\(\) \{\n(?P<body>.*?)(?=^\}\n)",
+        smoke_script,
+        re.MULTILINE | re.DOTALL,
+    )
+    refresh = re.search(
+        r"^refresh_base_url\(\) \{\n(?P<body>.*?)(?=^\}\n)",
+        smoke_script,
+        re.MULTILINE | re.DOTALL,
+    )
+
+    assert wait is not None
+    assert refresh is not None
+    wait_body = wait.group("body")
+    refresh_body = refresh.group("body")
+    assert 'local stage="${1:?health stage is required}"' in wait_body
+    assert "--connect-timeout" in wait_body
+    assert "--max-time" in wait_body
+    assert "--write-out '%{http_code}'" in wait_body
+    assert 'last_health_http_code="${health_http_code:-000}"' in wait_body
+    assert 'last_health_body="$(cat "$health_body_file")"' in wait_body
+    assert 'last_health_curl_error="$(cat "$health_error_file")"' in wait_body
+    assert 'stage_marker "$stage healthy"' in wait_body
+
+    assert 'docker port "$container" 8000/tcp' in refresh_body
+    assert 'base_url="http://127.0.0.1:$port"' in refresh_body
+    assert smoke_script.count("refresh_base_url") == 3
+    assert "wait_for_health initial" in smoke_script
+    assert "wait_for_health restart" in smoke_script
+    restart = smoke_script.index('docker restart "$container"')
+    assert restart < smoke_script.index("refresh_base_url", restart)
+    assert smoke_script.index("refresh_base_url", restart) < smoke_script.index(
+        "wait_for_health restart", restart
+    )
+
+    for marker in (
+        'stage_marker "settings saved"',
+        'stage_marker "restart beginning"',
+        'stage_marker "restart completed"',
+        'stage_marker "persistence verified"',
+    ):
+        assert marker in smoke_script
+
+
+def test_smoke_timeout_diagnostics_are_useful_and_do_not_expose_secrets() -> None:
+    smoke_script = (ROOT / "docker" / "smoke-test.sh").read_text(encoding="utf-8")
+    diagnostics = re.search(
+        r"^print_health_diagnostics\(\) \{\n(?P<body>.*?)(?=^\}\n)",
+        smoke_script,
+        re.MULTILINE | re.DOTALL,
+    )
+
+    assert diagnostics is not None
+    diagnostics_body = diagnostics.group("body")
+    for diagnostic in (
+        "stage=$stage",
+        "$last_health_http_code",
+        "$last_health_body",
+        "$last_health_curl_error",
+        "docker inspect --format",
+        ".State",
+        ".State.Health",
+        'docker top "$container"',
+        'docker port "$container"',
+        'docker logs --timestamps "$container"',
+    ):
+        assert diagnostic in diagnostics_body
+
+    for forbidden in (
+        ".Config.Env",
+        'docker inspect "$container"',
+        "admin_password",
+        "session_secret",
+        "credentials_file",
+        "printenv",
+        "env |",
+    ):
+        assert forbidden not in diagnostics_body
+
+
 def test_smoke_script_installs_cleanup_before_creating_credentials() -> None:
     smoke_script = (ROOT / "docker" / "smoke-test.sh").read_text(encoding="utf-8")
     temporary_directory = 'smoke_dir="$(mktemp -d'
