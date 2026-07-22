@@ -6,6 +6,15 @@ from fastapi.testclient import TestClient
 from backend.app.config import Settings
 from backend.app.main import create_app
 from backend.app.tax_source import SourceCalendarEvent, TaxSourceUnavailableError, YearMonth
+from backend.tests.http_helpers import SAME_ORIGIN_HEADERS
+
+
+def test_public_readme_documents_pull_only_release_deployment() -> None:
+    root = Path(__file__).resolve().parents[2]
+    readme = (root / "README.md").read_text(encoding="utf-8")
+
+    assert "docker compose pull" in readme
+    assert "GitHub Release" in readme
 
 
 class AcceptanceTaxSource:
@@ -59,10 +68,12 @@ def test_canonical_amount_acceptance(tmp_path: Path) -> None:
         login(client)
         encoded = client.post(
             "/api/money/to-uppercase",
+            headers=SAME_ORIGIN_HEADERS,
             json={"amount": "-128650.32"},
         )
         decoded = client.post(
             "/api/money/to-number",
+            headers=SAME_ORIGIN_HEADERS,
             json={"uppercase": encoded.json()["uppercase"]},
         )
 
@@ -85,6 +96,7 @@ def test_restart_preserves_settings_cache_and_official_text_during_outage(
         login(client)
         saved = client.put(
             "/api/tools/tax/settings",
+            headers=SAME_ORIGIN_HEADERS,
             json={
                 "default_mode": "personalized",
                 "taxpayer_type": "general_taxpayer",
@@ -115,6 +127,7 @@ def test_restart_preserves_settings_cache_and_official_text_during_outage(
         persisted = client.get("/api/tools/tax/settings")
         fallback = client.post(
             "/api/tools/tax/sync",
+            headers=SAME_ORIGIN_HEADERS,
             json={"region_code": "111000000", "month": "2026-07"},
         )
 

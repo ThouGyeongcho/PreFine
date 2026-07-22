@@ -17,9 +17,10 @@ Do not commit `.superpowers/`, local databases, build output, or secrets.
 
 ## Build, Test, and Development Commands
 
-Project manifests are not yet present. When scaffolding lands, standardize on these commands:
+Use these commands:
 
-- `docker compose up --build`: build and run the complete single-container application.
+- `docker compose pull`: pull the published container image.
+- `docker compose up -d`: run the pulled single-container application.
 - `python -m pytest backend/tests`: run backend unit and API tests.
 - `npm --prefix frontend run dev`: start Vite locally.
 - `npm --prefix frontend run lint`: run TypeScript linting and formatting checks.
@@ -45,4 +46,4 @@ Pull requests should include a summary, linked issue, test results, migration/co
 
 ## Security & Configuration
 
-Never commit `.env` files, credentials, SMTP secrets, session keys, or `/data/*.db`. Keep secrets in Docker environment variables and document new variables in `.env.example`. Preserve the single-worker constraint unless reminder scheduling is moved to shared infrastructure.
+Never commit `.env` files, credentials, SMTP secrets, session keys, or `/data/*.db`. Keep secrets in Docker environment variables and document new variables in `.env.example`. Docker image builds run only in GitHub Actions; local deployment documentation must remain pull-only. Preserve the single-worker constraint unless reminder scheduling is moved to shared infrastructure.

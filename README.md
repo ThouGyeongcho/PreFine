@@ -2,11 +2,17 @@
 
 ## Container publication
 
-Users pull the published GHCR image and do not build it locally. A push to `main`
-publishes only `ghcr.io/thougyeongcho/prefine:latest`; a `v0.1.0` Git tag
-publishes only `ghcr.io/thougyeongcho/prefine:0.1.0`. Each published tag includes
-both `linux/amd64` and `linux/arm64` images. The image can be pulled anonymously
-only after the package visibility gate has been changed to public in GHCR.
+Users pull the published [GHCR image](https://github.com/ThouGyeongcho/PreFine/pkgs/container/prefine)
+and do not build it locally. Docker image builds run only in GitHub Actions. A
+push to `main` publishes `ghcr.io/thougyeongcho/prefine:latest`; `latest` follows
+`main`. Only canonical semantic-version tags such as `v0.1.0` publish the matching
+image version and create a [GitHub Release](https://github.com/ThouGyeongcho/PreFine/releases).
+Each published tag includes both `linux/amd64` and `linux/arm64` images. The image
+can be pulled anonymously only after the package visibility gate has been changed
+to public in GHCR.
+
+PreFine is available under the [MIT License](LICENSE). Please report security
+issues privately according to the [security policy](SECURITY.md).
 
 面向中国大陆财务团队的私有化单管理员工具箱。
 
@@ -16,13 +22,18 @@ PreFine 只从 GitHub Container Registry 拉取已发布的镜像；无需也不
 
 ```bash
 cp .env.example .env
-# 编辑 .env：设置 ADMIN_PASSWORD，并生成至少 32 字符的 SESSION_SECRET
+# 编辑 .env：替换所有 CHANGE_ME 凭据；SESSION_SECRET 至少 32 个随机字符
 docker compose up -d
 ```
 
 在 Windows PowerShell 中可使用 `Copy-Item .env.example .env`。启动后访问 `http://localhost:8000`。
 
 `PREFINE_DATA_DIR` 默认是 `./data`，数据库保存在该主机目录的 `prefine.db`。默认的 `PUID` 和 `PGID` 都是 `1000`；如宿主机目录属于其他用户，请在 `.env` 中改成相应的 UID/GID，确保容器内降权后的进程仍可写入数据目录。
+
+For a single-layer reverse proxy, set `TRUSTED_PROXY_IPS` to the proxy's exact
+direct IP address. That proxy must overwrite `X-Forwarded-For` with exactly one
+client IP. Leave `TRUSTED_PROXY_IPS` empty unless this condition is met; the empty
+value is the secure default.
 
 ### 升级与版本固定
 
@@ -33,7 +44,8 @@ docker compose up -d
 # 固定版本：在 .env 中设置 PREFINE_VERSION=0.1.0
 ```
 
-`PREFINE_VERSION=latest` 会始终拉取最新发布版本。升级前请先按[运行手册](docs/operations.md)备份 `prefine.db`。
+`PREFINE_VERSION=latest` follows `main`. Before an upgrade, follow the
+[operations guide](docs/operations.md) to back up the database.
 
 ### 常用命令
 

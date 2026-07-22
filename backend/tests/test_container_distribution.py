@@ -75,48 +75,28 @@ def test_effective_environment_parser_preserves_paths_and_falls_back() -> None:
         assert _data_dir_from_effective_environment(environment) == expected_data_dir
 
 
-def test_backup_docs_extract_the_effective_data_directory_for_each_shell() -> None:
-    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+def test_public_documents_use_safe_credentials_and_fail_closed_maintenance() -> None:
+    env_example = (ROOT / ".env.example").read_text(encoding="utf-8")
+    license_text = (ROOT / "LICENSE").read_text(encoding="utf-8")
+    security_text = (ROOT / "SECURITY.md").read_text(encoding="utf-8")
     operations = (ROOT / "docs" / "operations.md").read_text(encoding="utf-8")
-    posix_resolution = '''prefine_data_dir="$(
-  docker compose config --environment |
-    awk -F= '$1 == "PREFINE_DATA_DIR" { print substr($0, index($0, "=") + 1); exit }'
-)"
-if [ -z "$prefine_data_dir" ]; then
-  prefine_data_dir="./data"
-fi'''
-    powershell_resolution = '''$prefineDataDirLine = docker compose config --environment |
-  Where-Object { $_ -like "PREFINE_DATA_DIR=*" } |
-  Select-Object -First 1
-if ($prefineDataDirLine) {
-  $prefineDataDir = $prefineDataDirLine.Substring($prefineDataDirLine.IndexOf("=") + 1)
-}
-if ([string]::IsNullOrEmpty($prefineDataDir)) {
-  $prefineDataDir = ".\\data"
-}'''
 
-    assert operations.count(posix_resolution) == 2
-    assert operations.count(powershell_resolution) == 2
-    assert "awk -F= '{ print $2 }'" not in operations
-    assert "-split '='" not in operations
-    assert "-split \"=\"" not in operations
-    assert '''mkdir -p "$backup_dir"
-cp "$prefine_data_dir/prefine.db" "$backup_dir/prefine.db"''' in operations
-    assert 'cp "$backup_dir/prefine.db" "$prefine_data_dir/prefine.db"' in operations
-    backup_copy = (
-        'Copy-Item -LiteralPath (Join-Path -Path $prefineDataDir '
-        '-ChildPath "prefine.db") -Destination (Join-Path -Path $backupDir '
-        '-ChildPath "prefine.db")'
-    )
-    restore_copy = (
-        'Copy-Item -LiteralPath (Join-Path -Path $backupDir '
-        '-ChildPath "prefine.db") -Destination (Join-Path -Path $prefineDataDir '
-        '-ChildPath "prefine.db") -Force'
-    )
-    assert backup_copy in operations
-    assert restore_copy in operations
-    assert "Windows PowerShell 可将 `cp` 替换为 `Copy-Item`" not in operations
-    assert readme.count("${PREFINE_DATA_DIR:-./data}") == 1
+    assert "ADMIN_PASSWORD=CHANGE_ME_ADMIN_PASSWORD" in env_example
+    assert "SESSION_SECRET=CHANGE_ME_SESSION_SECRET" in env_example
+    assert "TRUSTED_PROXY_IPS=" in env_example
+    assert "Copyright (c) 2026 ThouGyeongcho" in license_text
+    assert "MIT License" in license_text
+    assert "security/advisories/new" in security_text
+    assert "python -m backend.app.database_maintenance backup" in operations
+    assert (
+        "python -m backend.app.database_maintenance restore "
+        "prefine-20260722T120000Z.db"
+    ) in operations
+    assert operations.count("set -eu") >= 2
+    assert '$ErrorActionPreference = "Stop"' in operations
+    assert "docker compose ps --status running --services" in operations
+    assert "Copy-Item" not in operations
+    assert "cp \"$prefine_data_dir/prefine.db\"" not in operations
 
 
 def _publish_workflow() -> str:
