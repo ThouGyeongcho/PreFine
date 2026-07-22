@@ -18,10 +18,7 @@ def _data_dir_from_effective_environment(environment: list[str]) -> str:
 
 def test_compose_pulls_prefine_and_mounts_only_the_host_directory() -> None:
     compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
-    expected_volume_section = (
-        "    volumes:\n"
-        '      - "${PREFINE_DATA_DIR:-./data}:/data"\n'
-    )
+    expected_volume_section = '    volumes:\n      - "${PREFINE_DATA_DIR:-./data}:/data"\n'
 
     assert "build:" not in compose
     assert "image: ghcr.io/thougyeongcho/prefine:${PREFINE_VERSION:-latest}" in compose
@@ -89,20 +86,20 @@ def test_public_documents_use_safe_credentials_and_fail_closed_maintenance() -> 
     assert "security/advisories/new" in security_text
     assert "python -m backend.app.database_maintenance backup" in operations
     assert (
-        "python -m backend.app.database_maintenance restore "
-        "prefine-20260722T120000Z.db"
+        "python -m backend.app.database_maintenance restore prefine-20260722T120000Z.db"
     ) in operations
     assert operations.count("set -eu") >= 2
     assert '$ErrorActionPreference = "Stop"' in operations
     assert "docker compose ps --status running --services" in operations
+    running_services = 'running_services="$(docker compose ps --status running --services)"'
+    assert operations.count(running_services) == 2
+    assert "docker compose ps --status running --services |" not in operations
     assert "Copy-Item" not in operations
-    assert "cp \"$prefine_data_dir/prefine.db\"" not in operations
+    assert 'cp "$prefine_data_dir/prefine.db"' not in operations
 
 
 def _publish_workflow() -> str:
-    return (ROOT / ".github" / "workflows" / "publish-container.yml").read_text(
-        encoding="utf-8"
-    )
+    return (ROOT / ".github" / "workflows" / "publish-container.yml").read_text(encoding="utf-8")
 
 
 def _validator_pattern(workflow: str) -> str:
@@ -148,9 +145,11 @@ def test_publish_workflow_upgrades_pip_before_auditing() -> None:
     ]
     assert pip_install_commands == [pip_upgrade, verification_tool_install]
     assert pip_audit in backend_verification
-    assert verify_source.index(pip_upgrade) < verify_source.index(
-        verification_tool_install
-    ) < verify_source.index(pip_audit)
+    assert (
+        verify_source.index(pip_upgrade)
+        < verify_source.index(verification_tool_install)
+        < verify_source.index(pip_audit)
+    )
 
 
 def test_publish_workflow_gates_source_image_and_release_publication() -> None:
@@ -161,19 +160,24 @@ def test_publish_workflow_gates_source_image_and_release_publication() -> None:
     image_job = _workflow_job(workflow, "publish_image")
     release_job = _workflow_job(workflow, "publish_release")
 
-    permissions = re.search(
-        r"^permissions:\n(?P<mapping>(?:^  [^\n]+\n)+)", workflow, re.MULTILINE
-    )
+    permissions = re.search(r"^permissions:\n(?P<mapping>(?:^  [^\n]+\n)+)", workflow, re.MULTILINE)
     assert permissions is not None
     assert permissions.group("mapping") == "  contents: read\n"
 
+    assert not re.search(r"^    if:", validate_ref, re.MULTILINE)
+    dispatch_check = 'if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then'
+    dispatch_main = 'test "$GITHUB_REF" = "refs/heads/main"'
+    main_check = 'if [ "$GITHUB_REF" = "refs/heads/main" ]; then'
+    assert dispatch_check in validate_ref
+    assert dispatch_main in validate_ref
     assert (
-        "if: github.event_name != 'workflow_dispatch' || github.ref == "
-        "'refs/heads/main'"
-    ) in validate_ref
+        validate_ref.index(dispatch_check)
+        < validate_ref.index(dispatch_main)
+        < validate_ref.index(main_check)
+    )
     assert (
         '[[ "$GITHUB_REF" =~ ^refs/tags/v(0|[1-9][0-9]*)\\.'
-        r'(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]'
+        r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]"
     ) in validate_ref
     assert "needs: validate_ref" in verify_source
     assert "needs: verify_source" in smoke_image
@@ -222,7 +226,7 @@ def test_publish_workflow_gates_source_image_and_release_publication() -> None:
         'curl --fail --silent --show-error --location --remote-name "$base/$checksums"',
         'grep "  $archive$" "$checksums" | sha256sum --check --strict -',
         'tar --extract --gzip --file "$archive" gitleaks',
-        './gitleaks git --redact --verbose --config .gitleaks.toml',
+        "./gitleaks git --redact --verbose --config .gitleaks.toml",
     ):
         assert command in gitleaks
     assert gitleaks.index('"$base/$archive"') < gitleaks.index('"$base/$checksums"')
@@ -257,9 +261,7 @@ def test_publish_workflow_gates_source_image_and_release_publication() -> None:
         ("docker/build-push-action", "53b7df96c91f9c12dcc8a07bcb9ccacbed38856a"),
         ("actions/checkout", "3d3c42e5aac5ba805825da76410c181273ba90b1"),
     ]
-    actual_action_refs = re.findall(
-        r"^\s*uses:\s*([^@\s]+)@([^\s#]+)", workflow, re.MULTILINE
-    )
+    actual_action_refs = re.findall(r"^\s*uses:\s*([^@\s]+)@([^\s#]+)", workflow, re.MULTILINE)
     assert actual_action_refs == expected_action_refs
     assert all(re.fullmatch(r"[0-9a-f]{40}", sha) for _, sha in actual_action_refs)
     assert "uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97" in workflow
@@ -267,11 +269,6 @@ def test_publish_workflow_gates_source_image_and_release_publication() -> None:
 
     assert "linux/amd64,linux/arm64" in image_job
     assert "ghcr.io/thougyeongcho/prefine" in workflow
-    assert (
-        "    if: github.event_name != 'workflow_dispatch' || github.ref == "
-        "'refs/heads/main'"
-    ) in workflow
-
     metadata = re.search(
         r"^      - name: Generate image metadata\n(?P<step>.*?)"
         r"(?=^      - name: Build and push image\n)",
@@ -323,6 +320,14 @@ def test_publish_workflow_gates_source_image_and_release_publication() -> None:
     assert "grep -q 'linux/amd64'" in manifest_step
     assert "grep -q 'linux/arm64'" in manifest_step
 
+    release_step = _workflow_step(release_job, "Create synchronized GitHub Release")
+    assert (
+        'gh release view "$tag" --json tagName,isDraft,isPrerelease,targetCommitish'
+    ) in release_step
+    assert '--arg sha "$GITHUB_SHA"' in release_step
+    assert ".targetCommitish == $sha" in release_step
+    assert release_step.index(".targetCommitish == $sha") < release_step.index("exit 0")
+    assert '--target "$GITHUB_SHA"' in release_step
 
 
 def test_smoke_script_exercises_runtime_security_and_persistence_contracts() -> None:
@@ -330,7 +335,7 @@ def test_smoke_script_exercises_runtime_security_and_persistence_contracts() -> 
 
     assert "set -Eeuo pipefail" in smoke_script
     assert "trap cleanup EXIT" in smoke_script
-    assert "docker rm --force \"$container\"" in smoke_script
+    assert 'docker rm --force "$container"' in smoke_script
     assert "awk '/^Uid:/{print $2}' /proc/1/status" in smoke_script
     assert 'test "$(docker exec "$container"' in smoke_script
     assert '"$base_url/api/health"' in smoke_script
@@ -338,10 +343,38 @@ def test_smoke_script_exercises_runtime_security_and_persistence_contracts() -> 
     assert "--request PUT" in smoke_script
     assert '"Origin: $base_url"' in smoke_script
     assert '"$base_url/api/tools/tax/settings"' in smoke_script
-    assert "docker restart \"$container\"" in smoke_script
+    assert 'docker restart "$container"' in smoke_script
     assert smoke_script.count(".reminder_days == [9,4]") == 2
-    assert smoke_script.index("docker restart \"$container\"") < smoke_script.rindex(
+    assert 'admin_password="$(openssl rand -hex 24)"' in smoke_script
+    assert 'session_secret="$(openssl rand -hex 32)"' in smoke_script
+    assert '--env-file "$credentials_file"' in smoke_script
+    assert '--arg password "$admin_password"' in smoke_script
+    assert "--data @-" in smoke_script
+    assert "ci-smoke-password-2026" not in smoke_script
+    assert "ci-smoke-session-secret-0123456789abcdef" not in smoke_script
+    assert smoke_script.index('docker restart "$container"') < smoke_script.rindex(
         '"$base_url/api/tools/tax/settings"'
+    )
+
+
+def test_publish_release_binds_existing_and_new_releases_to_the_run_commit() -> None:
+    release_job = _workflow_job(_publish_workflow(), "publish_release")
+    release_step = _workflow_step(release_job, "Create synchronized GitHub Release")
+    release_lookup = 'gh release view "$tag" --json tagName,isDraft,isPrerelease,targetCommitish'
+
+    assert release_lookup in release_step
+    assert '--arg sha "$GITHUB_SHA"' in release_step
+    assert ".targetCommitish == $sha" in release_step
+    assert (
+        release_step.index(release_lookup)
+        < release_step.index(".targetCommitish == $sha")
+        < release_step.index("exit 0")
+    )
+    assert '--target "$GITHUB_SHA"' in release_step
+    assert (
+        release_step.index(".targetCommitish == $sha")
+        < release_step.index("gh release create")
+        < release_step.index('--target "$GITHUB_SHA"')
     )
 
 
@@ -373,6 +406,8 @@ def test_entrypoint_dispatches_maintenance_commands_after_data_preparation() -> 
 
     command_dispatch = 'if [ "$#" -gt 0 ]; then\n  exec gosu "$puid:$pgid" "$@"\nfi'
     assert command_dispatch in entrypoint
-    assert entrypoint.index('chown -R "$puid:$pgid" /data') < entrypoint.index(
-        command_dispatch
-    ) < entrypoint.index("python -m alembic")
+    assert (
+        entrypoint.index('chown -R "$puid:$pgid" /data')
+        < entrypoint.index(command_dispatch)
+        < entrypoint.index("python -m alembic")
+    )

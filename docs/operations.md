@@ -34,7 +34,8 @@ intentionally leaves the app stopped. Restore automatically creates a validated
 ```sh
 set -eu
 docker compose stop app
-if docker compose ps --status running --services | grep -qx app; then
+running_services="$(docker compose ps --status running --services)"
+if printf '%s\n' "$running_services" | grep -qx app; then
   echo "PreFine app is still running; maintenance aborted" >&2
   exit 1
 fi
@@ -49,7 +50,8 @@ curl --fail http://localhost:8000/api/health
 ```sh
 set -eu
 docker compose stop app
-if docker compose ps --status running --services | grep -qx app; then
+running_services="$(docker compose ps --status running --services)"
+if printf '%s\n' "$running_services" | grep -qx app; then
   echo "PreFine app is still running; maintenance aborted" >&2
   exit 1
 fi

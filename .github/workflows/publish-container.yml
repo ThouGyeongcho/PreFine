@@ -20,13 +20,16 @@ env:
 
 jobs:
   validate_ref:
-    if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Validate publication ref
         shell: bash
         run: |
           set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            test "$GITHUB_REF" = "refs/heads/main"
+            exit 0
+          fi
           if [ "$GITHUB_REF" = "refs/heads/main" ]; then
             exit 0
           fi
@@ -204,9 +207,9 @@ jobs:
           set -euo pipefail
           tag="$GITHUB_REF_NAME"
           test "$(git rev-list -n 1 "$tag")" = "$GITHUB_SHA"
-          if gh release view "$tag" --json tagName,isDraft,isPrerelease >release.json 2>/dev/null; then
-            jq -e --arg tag "$tag" \
-              '.tagName == $tag and .isDraft == false and .isPrerelease == false' \
+          if gh release view "$tag" --json tagName,isDraft,isPrerelease,targetCommitish >release.json 2>/dev/null; then
+            jq -e --arg tag "$tag" --arg sha "$GITHUB_SHA" \
+              '.tagName == $tag and .targetCommitish == $sha and .isDraft == false and .isPrerelease == false' \
               release.json >/dev/null
             exit 0
           fi
@@ -217,6 +220,7 @@ jobs:
             "[Compose 文档](https://github.com/$GITHUB_REPOSITORY/blob/$tag/README.md) 和 [操作指南](https://github.com/$GITHUB_REPOSITORY/blob/$tag/docs/operations.md)")"
           gh release create "$tag" \
             --verify-tag \
+            --target "$GITHUB_SHA" \
             --title "$tag" \
             --generate-notes \
             --notes "$notes" \

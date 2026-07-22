@@ -5,6 +5,12 @@ image="${1:?usage: smoke-test.sh IMAGE}"
 smoke_dir="$(mktemp -d "${RUNNER_TEMP:-/tmp}/prefine-smoke.XXXXXX")"
 container="prefine-smoke-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}"
 cookie_jar="$smoke_dir/cookies.txt"
+credentials_file="$smoke_dir/credentials.env"
+admin_password="$(openssl rand -hex 24)"
+session_secret="$(openssl rand -hex 32)"
+umask 077
+printf 'ADMIN_USERNAME=admin\nADMIN_PASSWORD=%s\nSESSION_SECRET=%s\n' \
+  "$admin_password" "$session_secret" >"$credentials_file"
 
 cleanup() {
   docker rm --force "$container" >/dev/null 2>&1 || true
@@ -16,9 +22,7 @@ docker run --detach --name "$container" \
   --publish 127.0.0.1::8000 \
   --env PUID="$(id -u)" \
   --env PGID="$(id -g)" \
-  --env ADMIN_USERNAME=admin \
-  --env ADMIN_PASSWORD=ci-smoke-password-2026 \
-  --env SESSION_SECRET=ci-smoke-session-secret-0123456789abcdef \
+  --env-file "$credentials_file" \
   --env DATA_DIR=/data \
   --volume "$smoke_dir:/data" \
   "$image" >/dev/null
@@ -41,9 +45,10 @@ wait_for_health
 test "$(docker exec "$container" awk '/^Uid:/{print $2}' /proc/1/status)" != "0"
 test -s "$smoke_dir/prefine.db"
 
-curl --fail --silent --cookie-jar "$cookie_jar" \
+jq -nc --arg password "$admin_password" \
+  '{username:"admin",password:$password}' | curl --fail --silent --cookie-jar "$cookie_jar" \
   --header 'Content-Type: application/json' \
-  --data '{"username":"admin","password":"ci-smoke-password-2026"}' \
+  --data @- \
   "$base_url/api/auth/login" >/dev/null
 
 curl --fail --silent --cookie "$cookie_jar" \
@@ -55,9 +60,10 @@ curl --fail --silent --cookie "$cookie_jar" \
 
 docker restart "$container" >/dev/null
 wait_for_health
-curl --fail --silent --cookie-jar "$cookie_jar" \
+jq -nc --arg password "$admin_password" \
+  '{username:"admin",password:$password}' | curl --fail --silent --cookie-jar "$cookie_jar" \
   --header 'Content-Type: application/json' \
-  --data '{"username":"admin","password":"ci-smoke-password-2026"}' \
+  --data @- \
   "$base_url/api/auth/login" >/dev/null
 curl --fail --silent --cookie "$cookie_jar" \
   "$base_url/api/tools/tax/settings" | jq -e '.reminder_days == [9,4]' >/dev/null
