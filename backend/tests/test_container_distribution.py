@@ -238,7 +238,9 @@ def test_publish_workflow_gates_source_image_and_release_publication() -> None:
     assert "permissions:\n      contents: read\n      packages: write" in image_job
     assert "permissions:\n      contents: write" in release_job
     assert "--verify-tag" in release_job
-    assert "--generate-notes" in release_job
+    assert "--notes-file RELEASE_NOTES.md" in release_job
+    assert "--generate-notes" not in release_job
+    assert "notes=\"$(printf" not in release_job
     assert "if: startsWith(github.ref, 'refs/tags/v')" in release_job
 
     source_checkout = _workflow_step(verify_source, "Check out complete history")
@@ -525,6 +527,14 @@ def test_publish_release_binds_existing_and_new_releases_to_the_run_commit() -> 
         < release_step.index("gh release create")
         < release_step.index('--target "$GITHUB_SHA"')
     )
+
+
+def test_release_notes_only_describe_v0_1_1() -> None:
+    release_notes = (ROOT / "RELEASE_NOTES.md").read_text(encoding="utf-8")
+
+    assert release_notes.startswith("# PreFine v0.1.1\n")
+    assert "v0.1.0" not in release_notes
+    assert "## Docker" not in release_notes
 
 
 def test_publish_workflow_validator_accepts_only_canonical_version_tags() -> None:

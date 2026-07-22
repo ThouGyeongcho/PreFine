@@ -41,7 +41,7 @@ value is the secure default.
 docker compose pull
 docker compose up -d
 
-# 固定版本：在 .env 中设置 PREFINE_VERSION=0.1.0
+# 固定版本：在 .env 中设置 PREFINE_VERSION=0.1.1
 ```
 
 `PREFINE_VERSION=latest` follows `main`. Before an upgrade, follow the

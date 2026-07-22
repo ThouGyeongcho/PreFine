@@ -110,18 +110,25 @@ test("@desktop administrator completes the core desktop flow", async ({
 }) => {
   await login(page);
 
-  await page.getByRole("link", { name: "金额大小写转换" }).click();
+  await page.getByRole("link", { name: "金额转换", exact: true }).click();
   await page.getByLabel("数字金额").fill("-128650.32");
   await page.getByRole("button", { name: "转换" }).click();
-  await expect(page.getByLabel("转换结果")).toHaveText(
-    "负壹拾贰万捌仟陆佰伍拾元叁角贰分",
+  await expect(
+    page.getByLabel("转换结果").locator('[aria-hidden="true"]'),
+  ).toHaveText("负壹拾贰万捌仟陆佰伍拾元叁角贰分");
+  await expect(page.getByRole("group", { name: "快速读数" })).toContainText(
+    "-12万8650.32",
   );
   await page.getByRole("button", { name: "切换为大写转数字" }).click();
   await expect(page.getByLabel("人民币大写")).toHaveValue(
     "负壹拾贰万捌仟陆佰伍拾元叁角贰分",
   );
+  await page.getByLabel("人民币大写").fill("壹佰圆整");
   await page.getByRole("button", { name: "转换" }).click();
-  await expect(page.getByLabel("转换结果")).toHaveText("-128650.32");
+  await expect(page.getByLabel("转换结果")).toHaveText("100.00");
+  await expect(
+    page.getByText("已按标准写法转换：“圆”应写作“元”。"),
+  ).toBeVisible();
 
   await mockCalendarApis(page);
   await page.getByRole("link", { name: "税收日历" }).click();
@@ -170,14 +177,10 @@ test("@desktop logout prevents browser back from restoring private data", async 
   await page.getByRole("link", { name: "税收日历", exact: true }).click();
   await expect(page.getByRole("heading", { name: "税收日历" })).toBeVisible();
   await page.getByRole("button", { name: "退出登录" }).click();
-  await expect(
-    page.getByRole("heading", { name: "登录 PreFine" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "管理员登录" })).toBeVisible();
 
   await page.goBack();
 
-  await expect(
-    page.getByRole("heading", { name: "登录 PreFine" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "管理员登录" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "税收日历" })).toHaveCount(0);
 });

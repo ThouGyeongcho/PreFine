@@ -213,15 +213,9 @@ jobs:
               release.json >/dev/null
             exit 0
           fi
-          version="${tag#v}"
-          notes="$(printf '%s\n\n%s\n\n%s\n' \
-            '## Docker' \
-            "\`docker pull ghcr.io/thougyeongcho/prefine:$version\`" \
-            "[Compose 文档](https://github.com/$GITHUB_REPOSITORY/blob/$tag/README.md) 和 [操作指南](https://github.com/$GITHUB_REPOSITORY/blob/$tag/docs/operations.md)")"
           gh release create "$tag" \
             --verify-tag \
             --target "$GITHUB_SHA" \
             --title "$tag" \
-            --generate-notes \
-            --notes "$notes" \
+            --notes-file RELEASE_NOTES.md \
             --latest

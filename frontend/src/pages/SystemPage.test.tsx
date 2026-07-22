@@ -13,7 +13,7 @@ it("shows whether reminder email is configured without exposing secrets", async 
           status: "ok",
           database: "ok",
           scheduler: "running",
-          version: "0.1.0",
+          version: "0.1.1",
         });
       }
       if (String(input) === "/api/tools/tax/settings") {
@@ -27,4 +27,5 @@ it("shows whether reminder email is configured without exposing secrets", async 
 
   expect(await screen.findByText("未配置")).toBeVisible();
   expect(screen.getByText("邮件提醒")).toBeVisible();
+  expect(screen.getByText("0.1.1")).toBeVisible();
 });
