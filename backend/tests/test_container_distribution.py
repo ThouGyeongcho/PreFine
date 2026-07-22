@@ -143,6 +143,16 @@ def _workflow_job(workflow: str, name: str) -> str:
     return job.group("body")
 
 
+def _workflow_step(job: str, name: str) -> str:
+    step = re.search(
+        rf"^      - name: {re.escape(name)}\n(?P<body>.*?)(?=^      - name:|\Z)",
+        job,
+        re.MULTILINE | re.DOTALL,
+    )
+    assert step is not None
+    return step.group("body")
+
+
 def test_publish_workflow_gates_source_image_and_release_publication() -> None:
     workflow = _publish_workflow()
     validate_ref = _workflow_job(workflow, "validate_ref")
@@ -180,15 +190,56 @@ def test_publish_workflow_gates_source_image_and_release_publication() -> None:
     assert "--generate-notes" in release_job
     assert "if: startsWith(github.ref, 'refs/tags/v')" in release_job
 
+    source_checkout = _workflow_step(verify_source, "Check out complete history")
+    assert "fetch-depth: 0" in source_checkout
+
+    backend_verification = _workflow_step(verify_source, "Verify backend")
     for source_gate in (
         "python -m pytest backend/tests",
         "python -m ruff check backend",
         "python -m pip_audit",
-        "pnpm --dir frontend audit --prod --audit-level high",
-        "pnpm --dir frontend exec playwright",
-        "gitleaks git --redact",
     ):
-        assert source_gate in verify_source
+        assert source_gate in backend_verification
+
+    frontend_verification = _workflow_step(verify_source, "Audit and verify frontend")
+    frontend_commands = [
+        line.strip()
+        for line in frontend_verification.splitlines()
+        if line.strip().startswith("pnpm --dir frontend")
+    ]
+    assert frontend_commands == [
+        "pnpm --dir frontend audit --prod --audit-level high",
+        "pnpm --dir frontend run lint",
+        "pnpm --dir frontend exec vitest run",
+        "pnpm --dir frontend run build",
+        "pnpm --dir frontend exec playwright install --with-deps chromium",
+        "pnpm --dir frontend exec playwright test",
+    ]
+
+    gitleaks = _workflow_step(verify_source, "Scan complete history for secrets")
+    for command in (
+        'curl --fail --silent --show-error --location --remote-name "$base/$archive"',
+        'curl --fail --silent --show-error --location --remote-name "$base/$checksums"',
+        'grep "  $archive$" "$checksums" | sha256sum --check --strict -',
+        'tar --extract --gzip --file "$archive" gitleaks',
+        './gitleaks git --redact --verbose --config .gitleaks.toml',
+    ):
+        assert command in gitleaks
+    assert gitleaks.index('"$base/$archive"') < gitleaks.index('"$base/$checksums"')
+    assert gitleaks.index('"$base/$checksums"') < gitleaks.index("sha256sum")
+    assert gitleaks.index("sha256sum") < gitleaks.index("tar --extract")
+    assert gitleaks.index("tar --extract") < gitleaks.index("gitleaks git --redact")
+
+    smoke_build = _workflow_step(smoke_image, "Build smoke image without pushing")
+    assert "platforms: linux/amd64" in smoke_build
+    assert "load: true" in smoke_build
+    assert "push: false" in smoke_build
+    assert "tags: prefine:smoke" in smoke_build
+    assert "platforms: linux/amd64,linux/arm64" not in smoke_build
+    assert "push: true" not in smoke_build
+    assert "docker/login-action" not in smoke_image
+    assert "docker login" not in smoke_image
+    assert "docker push" not in smoke_image
     assert "docker/smoke-test.sh prefine:smoke" in smoke_image
 
     expected_action_refs = [
@@ -214,9 +265,6 @@ def test_publish_workflow_gates_source_image_and_release_publication() -> None:
     assert "uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97" in workflow
     assert "uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020" in workflow
 
-    assert "platforms: linux/amd64" in smoke_image
-    assert "load: true" in smoke_image
-    assert "tags: prefine:smoke" in smoke_image
     assert "linux/amd64,linux/arm64" in image_job
     assert "ghcr.io/thougyeongcho/prefine" in workflow
     assert (
