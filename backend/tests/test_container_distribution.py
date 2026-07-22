@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import math
 import re
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DATA_DIR = "./data"
 DATA_DIR_VARIABLE = "PREFINE_DATA_DIR"
+RESTRICTED_INSPECT_FORMAT = (
+    "docker inspect --format 'State={{json .State}} Health={{json .State.Health}}'"
+)
 
 
 def _data_dir_from_effective_environment(environment: list[str]) -> str:
@@ -14,6 +20,47 @@ def _data_dir_from_effective_environment(environment: list[str]) -> str:
         if separator and name == DATA_DIR_VARIABLE:
             return value or DEFAULT_DATA_DIR
     return DEFAULT_DATA_DIR
+
+
+def _shell_function(script: str, name: str) -> str:
+    function = re.search(
+        rf"^{re.escape(name)}\(\) \{{\n(?P<body>.*?)(?=^\}}\n)",
+        script,
+        re.MULTILINE | re.DOTALL,
+    )
+    assert function is not None, f"missing shell function: {name}"
+    return function.group("body")
+
+
+def _assert_safe_smoke_diagnostic_contract(smoke_script: str) -> None:
+    wait_body = _shell_function(smoke_script, "wait_for_health")
+    diagnostics_body = _shell_function(smoke_script, "print_health_diagnostics")
+
+    assert wait_body.count("curl ") == 1
+    for option in ("--connect-timeout", "--max-time"):
+        values = re.findall(rf"{re.escape(option)}\s+([^\s\\]+)", wait_body)
+        assert len(values) == 1, f"{option} must have exactly one numeric value"
+        try:
+            timeout = float(values[0])
+        except ValueError as error:
+            raise AssertionError(f"{option} must be numeric") from error
+        assert math.isfinite(timeout) and timeout > 0, f"{option} must be finite and positive"
+
+    exhausted_timeout_path = '  done\n  print_health_diagnostics "$stage"\n  return 1\n'
+    assert exhausted_timeout_path in wait_body
+
+    inspect_calls = re.findall(r"\bdocker\s+inspect\b", smoke_script)
+    assert len(inspect_calls) == 1, "smoke script must contain exactly one docker inspect"
+    assert diagnostics_body.count(RESTRICTED_INSPECT_FORMAT) == 1, (
+        "docker inspect must use the restricted State/Health format"
+    )
+    for forbidden in (
+        "{{json .}}",
+        ".Config",
+        ".Config.Env",
+        'docker inspect "$container"',
+    ):
+        assert forbidden not in diagnostics_body
 
 
 def test_compose_pulls_prefine_and_mounts_only_the_host_directory() -> None:
@@ -359,24 +406,9 @@ def test_smoke_script_exercises_runtime_security_and_persistence_contracts() -> 
 
 def test_smoke_health_wait_is_bounded_stage_aware_and_refreshes_the_port() -> None:
     smoke_script = (ROOT / "docker" / "smoke-test.sh").read_text(encoding="utf-8")
-    wait = re.search(
-        r"^wait_for_health\(\) \{\n(?P<body>.*?)(?=^\}\n)",
-        smoke_script,
-        re.MULTILINE | re.DOTALL,
-    )
-    refresh = re.search(
-        r"^refresh_base_url\(\) \{\n(?P<body>.*?)(?=^\}\n)",
-        smoke_script,
-        re.MULTILINE | re.DOTALL,
-    )
-
-    assert wait is not None
-    assert refresh is not None
-    wait_body = wait.group("body")
-    refresh_body = refresh.group("body")
+    wait_body = _shell_function(smoke_script, "wait_for_health")
+    refresh_body = _shell_function(smoke_script, "refresh_base_url")
     assert 'local stage="${1:?health stage is required}"' in wait_body
-    assert "--connect-timeout" in wait_body
-    assert "--max-time" in wait_body
     assert "--write-out '%{http_code}'" in wait_body
     assert 'last_health_http_code="${health_http_code:-000}"' in wait_body
     assert 'last_health_body="$(cat "$health_body_file")"' in wait_body
@@ -405,14 +437,8 @@ def test_smoke_health_wait_is_bounded_stage_aware_and_refreshes_the_port() -> No
 
 def test_smoke_timeout_diagnostics_are_useful_and_do_not_expose_secrets() -> None:
     smoke_script = (ROOT / "docker" / "smoke-test.sh").read_text(encoding="utf-8")
-    diagnostics = re.search(
-        r"^print_health_diagnostics\(\) \{\n(?P<body>.*?)(?=^\}\n)",
-        smoke_script,
-        re.MULTILINE | re.DOTALL,
-    )
-
-    assert diagnostics is not None
-    diagnostics_body = diagnostics.group("body")
+    _assert_safe_smoke_diagnostic_contract(smoke_script)
+    diagnostics_body = _shell_function(smoke_script, "print_health_diagnostics")
     for diagnostic in (
         "stage=$stage",
         "$last_health_http_code",
@@ -437,6 +463,22 @@ def test_smoke_timeout_diagnostics_are_useful_and_do_not_expose_secrets() -> Non
         "env |",
     ):
         assert forbidden not in diagnostics_body
+
+
+def test_smoke_diagnostic_contract_rejects_unsafe_mutations() -> None:
+    smoke_script = (ROOT / "docker" / "smoke-test.sh").read_text(encoding="utf-8")
+    zero_timeout = smoke_script.replace("--max-time 5", "--max-time 0")
+    whole_object_inspect = smoke_script.replace(
+        "'State={{json .State}} Health={{json .State.Health}}'",
+        "'{{json .}}'",
+    )
+
+    assert zero_timeout != smoke_script
+    assert whole_object_inspect != smoke_script
+    with pytest.raises(AssertionError, match="--max-time must be finite and positive"):
+        _assert_safe_smoke_diagnostic_contract(zero_timeout)
+    with pytest.raises(AssertionError, match="restricted State/Health format"):
+        _assert_safe_smoke_diagnostic_contract(whole_object_inspect)
 
 
 def test_smoke_script_installs_cleanup_before_creating_credentials() -> None:
