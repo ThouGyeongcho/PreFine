@@ -14,7 +14,7 @@ def test_public_readme_documents_pull_only_release_deployment() -> None:
     readme = (root / "README.md").read_text(encoding="utf-8")
 
     assert "docker compose pull" in readme
-    assert "GitHub Release" in readme
+    assert "https://github.com/ThouGyeongcho/PreFine/releases" in readme
 
 
 class AcceptanceTaxSource:

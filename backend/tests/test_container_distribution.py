@@ -86,10 +86,11 @@ def test_compose_pulls_prefine_and_mounts_only_the_host_directory() -> None:
     assert volume_entries == ['      - "${PREFINE_DATA_DIR:-./data}:/data"']
 
 
-def test_readme_contains_the_exact_compose_document() -> None:
+def test_readme_links_to_canonical_compose_document_without_duplicating_it() -> None:
     compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8").strip()
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert f"```yaml\n{compose}\n```" in readme
+    assert "[docker-compose.yml](docker-compose.yml)" in readme
+    assert f"```yaml\n{compose}\n```" not in readme
 
 
 def test_local_data_and_secrets_are_ignored() -> None:

@@ -23,7 +23,8 @@ PreFine 将常用财务能力集中在一个简洁的网页工作台中。项目
 
 PreFine 的容器镜像由 GitHub Actions 构建并发布到
 [GitHub 容器镜像仓库](https://github.com/ThouGyeongcho/PreFine/pkgs/container/prefine)。
-部署时直接拉取镜像，不需要在服务器上构建。
+部署时直接使用仓库中的 [docker-compose.yml](docker-compose.yml) 拉取镜像，
+不需要在服务器上构建。
 
 已发布镜像同时支持 `linux/amd64` 和 `linux/arm64`。
 
