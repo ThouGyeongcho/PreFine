@@ -36,45 +36,55 @@ export function LoginPage() {
 
   return (
     <main className="login-page">
-      <section className="login-card" aria-labelledby="login-title">
-        <img className="brand-mark" src="/prefine-logo-512.png" alt="PreFine" />
-        <p className="login-brand-name">PreFine</p>
-        <h1 id="login-title">管理员登录</h1>
-        <p className="muted">使用部署时配置的管理员账号继续。</p>
-        <form onSubmit={handleSubmit} className="form-stack">
-          <label>
-            用户名
-            <input
-              name="username"
-              autoComplete="username"
-              value={username}
-              onChange={(event) => setUsername(event.target.value)}
+      <div className="login-card-stack">
+        <div className="login-blue-layer" aria-hidden="true" />
+        <section className="login-card" aria-labelledby="login-title">
+          <div className="login-identity">
+            <img
+              className="brand-mark login-brand-mark"
+              src="/prefine-logo-512.png"
+              alt=""
             />
-          </label>
-          <label>
-            密码
-            <input
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-            />
-          </label>
-          {errorMessage ? (
-            <div role="alert" className="inline-error">
-              {errorMessage}
-            </div>
-          ) : null}
-          <button
-            className="button button-primary"
-            type="submit"
-            disabled={login.isPending}
-          >
-            {login.isPending ? "正在登录…" : "登录"}
-          </button>
-        </form>
-      </section>
+            <p className="login-brand-name">PreFine</p>
+          </div>
+          <h1 id="login-title" className="login-title">
+            登录
+          </h1>
+          <form onSubmit={handleSubmit} className="login-form">
+            <label className="login-field">
+              管理员账号
+              <input
+                name="username"
+                autoComplete="username"
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+              />
+            </label>
+            <label className="login-field">
+              密码
+              <input
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+            </label>
+            {errorMessage ? (
+              <div role="alert" className="inline-error">
+                {errorMessage}
+              </div>
+            ) : null}
+            <button
+              className="button login-submit"
+              type="submit"
+              disabled={login.isPending}
+            >
+              {login.isPending ? "正在登录…" : "登录"}
+            </button>
+          </form>
+        </section>
+      </div>
     </main>
   );
 }
