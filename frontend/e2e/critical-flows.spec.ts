@@ -63,7 +63,7 @@ const calendar = {
 
 async function login(page: Page) {
   await page.goto("/login");
-  await page.getByLabel("用户名").fill("admin");
+  await page.getByLabel("管理员账号").fill("admin");
   await page.getByLabel("密码").fill("e2e-password-not-a-secret");
   await page.getByRole("button", { name: "登录" }).click();
   await expect(page.getByRole("heading", { name: "工作台" })).toBeVisible();
@@ -104,6 +104,56 @@ async function mockCalendarApis(page: Page) {
     route.fulfill({ json: calendar }),
   );
 }
+
+test("@desktop login page uses the approved layered geometry", async ({
+  page,
+}) => {
+  await page.goto("/login");
+
+  const stack = page.locator(".login-card-stack");
+  const layer = page.locator(".login-blue-layer");
+  const card = page.locator(".login-card");
+  const form = page.locator(".login-form");
+
+  await expect(stack).toBeVisible();
+  await expect(layer).toHaveCSS("height", "20px");
+  await expect(card).toHaveCSS("border-top-width", "0px");
+  await expect(card).toHaveCSS("border-top-left-radius", "0px");
+  await expect(card).toHaveCSS("border-top-right-radius", "0px");
+  await expect(page.locator(".login-brand-mark")).toHaveCSS("width", "74px");
+  await expect(page.locator(".login-brand-name")).toHaveCSS(
+    "font-size",
+    "42px",
+  );
+  await expect(page.locator(".login-title")).toHaveCSS("font-size", "15px");
+
+  const stackBox = await stack.boundingBox();
+  const formBox = await form.boundingBox();
+  expect(Math.round(stackBox?.width ?? 0)).toBe(360);
+  expect(Math.round(formBox?.width ?? 0)).toBe(304);
+});
+
+test("@mobile login page remains usable at 320px without overflow", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 720 });
+  await page.goto("/login");
+
+  await expect(page.getByLabel("管理员账号")).toBeVisible();
+  await expect(page.getByLabel("密码")).toBeVisible();
+  await expect(page.getByRole("button", { name: "登录" })).toBeVisible();
+
+  const pageOverflows = await page.evaluate(
+    () =>
+      document.documentElement.scrollWidth >
+      document.documentElement.clientWidth,
+  );
+  expect(pageOverflows).toBe(false);
+
+  const stackBox = await page.locator(".login-card-stack").boundingBox();
+  expect(stackBox?.x ?? -1).toBeGreaterThanOrEqual(16);
+  expect((stackBox?.x ?? 0) + (stackBox?.width ?? 0)).toBeLessThanOrEqual(304);
+});
 
 test("@desktop administrator completes the core desktop flow", async ({
   page,
@@ -177,10 +227,14 @@ test("@desktop logout prevents browser back from restoring private data", async 
   await page.getByRole("link", { name: "税收日历", exact: true }).click();
   await expect(page.getByRole("heading", { name: "税收日历" })).toBeVisible();
   await page.getByRole("button", { name: "退出登录" }).click();
-  await expect(page.getByRole("heading", { name: "管理员登录" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "登录" }),
+  ).toBeVisible();
 
   await page.goBack();
 
-  await expect(page.getByRole("heading", { name: "管理员登录" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "登录" }),
+  ).toBeVisible();
   await expect(page.getByRole("heading", { name: "税收日历" })).toHaveCount(0);
 });
