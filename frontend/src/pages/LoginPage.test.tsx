@@ -14,9 +14,7 @@ it("renders the approved PreFine login structure without duplicate copy", () => 
   expect(mark).toHaveAttribute("src", "/prefine-logo-512.png");
   expect(mark).toHaveAttribute("alt", "");
   expect(screen.getByText("PreFine")).toBeVisible();
-  expect(
-    screen.getByRole("heading", { level: 1, name: "登录" }),
-  ).toBeVisible();
+  expect(screen.getByRole("heading", { level: 1, name: "登录" })).toBeVisible();
   expect(screen.getByLabelText("管理员账号")).toHaveAttribute(
     "autocomplete",
     "username",
@@ -102,7 +100,5 @@ it("disables the action while login is pending", async () => {
   await user.type(screen.getByLabelText("密码"), "secret");
   await user.click(screen.getByRole("button", { name: "登录" }));
 
-  expect(
-    screen.getByRole("button", { name: "正在登录…" }),
-  ).toBeDisabled();
+  expect(screen.getByRole("button", { name: "正在登录…" })).toBeDisabled();
 });
