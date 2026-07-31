@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 
 const settings = {
   default_mode: "official",
@@ -69,6 +69,12 @@ async function login(page: Page) {
   await expect(page.getByRole("heading", { name: "工作台" })).toBeVisible();
 }
 
+async function boundingBox(locator: Locator) {
+  const box = await locator.boundingBox();
+  expect(box).not.toBeNull();
+  return box!;
+}
+
 async function mockCalendarApis(page: Page) {
   await page.route("**/api/regions", (route) =>
     route.fulfill({
@@ -127,10 +133,10 @@ test("@desktop login page uses the approved layered geometry", async ({
   );
   await expect(page.locator(".login-title")).toHaveCSS("font-size", "15px");
 
-  const stackBox = await stack.boundingBox();
-  const formBox = await form.boundingBox();
-  expect(Math.round(stackBox?.width ?? 0)).toBe(360);
-  expect(Math.round(formBox?.width ?? 0)).toBe(304);
+  const stackBox = await boundingBox(stack);
+  const formBox = await boundingBox(form);
+  expect(Math.round(stackBox.width)).toBe(360);
+  expect(Math.round(formBox.width)).toBe(304);
 });
 
 test("@mobile login page remains usable at 320px without overflow", async ({
@@ -150,9 +156,9 @@ test("@mobile login page remains usable at 320px without overflow", async ({
   );
   expect(pageOverflows).toBe(false);
 
-  const stackBox = await page.locator(".login-card-stack").boundingBox();
-  expect(stackBox?.x ?? -1).toBeGreaterThanOrEqual(16);
-  expect((stackBox?.x ?? 0) + (stackBox?.width ?? 0)).toBeLessThanOrEqual(304);
+  const stackBox = await boundingBox(page.locator(".login-card-stack"));
+  expect(stackBox.x).toBeGreaterThanOrEqual(16);
+  expect(stackBox.x + stackBox.width).toBeLessThanOrEqual(304);
 });
 
 test("@desktop administrator completes the core desktop flow", async ({
@@ -161,24 +167,70 @@ test("@desktop administrator completes the core desktop flow", async ({
   await login(page);
 
   await page.getByRole("link", { name: "金额转换", exact: true }).click();
+  await expect(page.locator(".sidebar-brand img")).toHaveAttribute(
+    "src",
+    "/prefine-logo-on-dark-512.png",
+  );
+  await expect(page.locator(".brand-mark-small")).toHaveCSS("width", "47px");
+  await expect(
+    page.getByText(
+      "转换人民币数字与规范大写，并提供便于核对和使用的金额写法。",
+    ),
+  ).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "便捷写法" })).toHaveCount(0);
+
   await page.getByLabel("数字金额").fill("-128650.32");
-  await page.getByRole("button", { name: "转换" }).click();
+  await page.getByRole("button", { name: "转换", exact: true }).click();
   await expect(
     page.getByLabel("转换结果").locator('[aria-hidden="true"]'),
   ).toHaveText("负壹拾贰万捌仟陆佰伍拾元叁角贰分");
   await expect(page.getByRole("group", { name: "快速读数" })).toContainText(
     "-12万8650.32",
   );
-  await page.getByRole("button", { name: "切换为大写转数字" }).click();
-  await expect(page.getByLabel("人民币大写")).toHaveValue(
-    "负壹拾贰万捌仟陆佰伍拾元叁角贰分",
+
+  const panelsBox = await boundingBox(page.locator(".money-panels"));
+  const convertBox = await boundingBox(page.locator(".money-convert"));
+  const formatsBox = await boundingBox(page.locator(".money-formats"));
+  expect(Math.abs(panelsBox.width - convertBox.width)).toBeLessThanOrEqual(1);
+  expect(Math.abs(panelsBox.width - formatsBox.width)).toBeLessThanOrEqual(1);
+
+  const panels = page.locator(".money-panel");
+  const leftPanel = await boundingBox(panels.nth(0));
+  const rightPanel = await boundingBox(panels.nth(1));
+  expect(Math.abs(leftPanel.width - rightPanel.width)).toBeLessThanOrEqual(1);
+  expect(Math.abs(leftPanel.height - rightPanel.height)).toBeLessThanOrEqual(1);
+
+  const contentBoxes = page.locator(".money-panel .money-content-box");
+  const leftContent = await boundingBox(contentBoxes.nth(0));
+  const rightContent = await boundingBox(contentBoxes.nth(1));
+  expect(Math.abs(leftContent.width - rightContent.width)).toBeLessThanOrEqual(
+    1,
   );
-  await page.getByLabel("人民币大写").fill("壹佰圆整");
-  await page.getByRole("button", { name: "转换" }).click();
-  await expect(page.getByLabel("转换结果")).toHaveText("100.00");
-  await expect(
-    page.getByText("已按标准写法转换：“圆”应写作“元”。"),
-  ).toBeVisible();
+  expect(
+    Math.abs(leftContent.height - rightContent.height),
+  ).toBeLessThanOrEqual(1);
+
+  const panelCopies = page.locator(".money-panel .money-copy");
+  const leftCopy = await boundingBox(panelCopies.nth(0));
+  const rightCopy = await boundingBox(panelCopies.nth(1));
+  expect(Math.abs(leftCopy.width - rightCopy.width)).toBeLessThanOrEqual(1);
+  expect(Math.abs(leftCopy.height - rightCopy.height)).toBeLessThanOrEqual(1);
+  expect(leftCopy.y).toBeGreaterThan(leftContent.y + leftContent.height);
+  expect(rightCopy.y).toBeGreaterThan(rightContent.y + rightContent.height);
+
+  await page.getByRole("button", { name: "大写转数字" }).click();
+  await page.getByLabel("人民币大写").fill("肆圆整");
+  await page.getByRole("button", { name: "转换", exact: true }).click();
+  await expect(page.getByLabel("人民币大写")).toHaveValue("肆元整");
+  await expect(page.getByText("原输入：肆圆整 · 已规范")).toBeVisible();
+  await expect(page.getByRole("status", { name: "转换结果" })).toHaveText(
+    "4.00",
+  );
+  await page.getByRole("button", { name: "复制英文金额" }).click();
+  await expect(page.getByRole("button", { name: "复制英文金额" })).toHaveText(
+    "已复制",
+  );
+  await expect(page.locator(".copy-status")).toHaveCount(0);
 
   await mockCalendarApis(page);
   await page.getByRole("link", { name: "税收日历" }).click();
@@ -195,6 +247,41 @@ test("@desktop administrator completes the core desktop flow", async ({
   await expect(
     taxSettings.getByRole("button", { name: "发送测试邮件" }),
   ).toBeDisabled();
+});
+
+test("@mobile money layout is single-column at 320px without overflow", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  await login(page);
+  await page.getByRole("button", { name: "打开导航" }).click();
+  await page.getByRole("link", { name: "金额转换", exact: true }).click();
+  await page.getByLabel("数字金额").fill("4.00");
+  await page.getByRole("button", { name: "转换", exact: true }).click();
+
+  const pageOverflows = await page.evaluate(
+    () =>
+      document.documentElement.scrollWidth >
+      document.documentElement.clientWidth,
+  );
+  expect(pageOverflows).toBe(false);
+  expect(
+    await page
+      .locator(".money-panels")
+      .evaluate((element) => getComputedStyle(element).gridTemplateColumns),
+  ).not.toContain(" ");
+  expect(
+    await page
+      .locator(".money-formats")
+      .evaluate((element) => getComputedStyle(element).gridTemplateColumns),
+  ).not.toContain(" ");
+
+  const copyButtons = page.locator(".money-copy");
+  await expect(copyButtons).toHaveCount(5);
+  for (let index = 0; index < 5; index += 1) {
+    await expect(copyButtons.nth(index)).toBeEnabled();
+  }
+  await expect(page.locator(".money-convert")).toBeEnabled();
 });
 
 test("@mobile mobile layout keeps core actions reachable without page overflow", async ({
