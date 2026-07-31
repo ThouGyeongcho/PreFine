@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import json
 import math
 import re
+import tomllib
 from pathlib import Path
 
 import pytest
+
+from backend.app import __version__
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DATA_DIR = "./data"
@@ -530,12 +534,25 @@ def test_publish_release_binds_existing_and_new_releases_to_the_run_commit() -> 
     )
 
 
-def test_release_notes_only_describe_v0_1_1() -> None:
+def test_release_notes_only_describe_v0_1_2() -> None:
     release_notes = (ROOT / "RELEASE_NOTES.md").read_text(encoding="utf-8")
 
-    assert release_notes.startswith("# PreFine v0.1.1\n")
-    assert "v0.1.0" not in release_notes
+    assert release_notes.startswith("# PreFine v0.1.2\n")
+    assert "v0.1.1" not in release_notes
     assert "## Docker" not in release_notes
+
+
+def test_application_version_sources_match_v0_1_2() -> None:
+    pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    frontend_package = json.loads(
+        (ROOT / "frontend" / "package.json").read_text(encoding="utf-8")
+    )
+
+    assert {
+        __version__,
+        pyproject["project"]["version"],
+        frontend_package["version"],
+    } == {"0.1.2"}
 
 
 def test_publish_workflow_validator_accepts_only_canonical_version_tags() -> None:

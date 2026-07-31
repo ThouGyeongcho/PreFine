@@ -52,7 +52,7 @@ def test_health_does_not_require_authentication(tmp_path: Path) -> None:
         "status": "ok",
         "database": "ok",
         "scheduler": "stopped",
-        "version": "0.1.1",
+        "version": "0.1.2",
     }
 
 

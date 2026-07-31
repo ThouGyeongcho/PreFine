@@ -159,7 +159,7 @@ Invoke-RestMethod http://localhost:8000/api/health
 生产环境建议在 `.env` 中固定已发布版本，例如：
 
 ```dotenv
-PREFINE_VERSION=0.1.1
+PREFINE_VERSION=0.1.2
 ```
 
 可用版本请查看 [GitHub 版本发布页](https://github.com/ThouGyeongcho/PreFine/releases)。
