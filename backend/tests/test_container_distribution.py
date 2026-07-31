@@ -245,7 +245,7 @@ def test_publish_workflow_gates_source_image_and_release_publication() -> None:
     assert "--verify-tag" in release_job
     assert "--notes-file RELEASE_NOTES.md" in release_job
     assert "--generate-notes" not in release_job
-    assert "notes=\"$(printf" not in release_job
+    assert 'notes="$(printf' not in release_job
     assert "if: startsWith(github.ref, 'refs/tags/v')" in release_job
 
     source_checkout = _workflow_step(verify_source, "Check out complete history")
@@ -544,9 +544,7 @@ def test_release_notes_only_describe_v0_1_2() -> None:
 
 def test_application_version_sources_match_v0_1_2() -> None:
     pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    frontend_package = json.loads(
-        (ROOT / "frontend" / "package.json").read_text(encoding="utf-8")
-    )
+    frontend_package = json.loads((ROOT / "frontend" / "package.json").read_text(encoding="utf-8"))
 
     assert {
         __version__,
