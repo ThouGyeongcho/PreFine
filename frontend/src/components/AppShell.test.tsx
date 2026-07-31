@@ -33,7 +33,7 @@ it("shows the four approved primary navigation destinations", () => {
   expect(screen.getAllByText("PreFine")).toHaveLength(2);
   expect(document.querySelector(".sidebar-brand img")).toHaveAttribute(
     "src",
-    "/prefine-logo-512.png",
+    "/prefine-logo-on-dark-512.png",
   );
 });
 

@@ -137,8 +137,8 @@ h2 {
   object-fit: contain;
 }
 .brand-mark-small {
-  width: 32px;
-  height: 32px;
+  width: 47px;
+  height: 47px;
   margin: 0;
 }
 .login-identity {
@@ -241,9 +241,10 @@ textarea {
 .sidebar-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
   padding: 0 8px 24px;
   color: #fff;
+  font-size: 21px;
   font-weight: 500;
 }
 .primary-nav {

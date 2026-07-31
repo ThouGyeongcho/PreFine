@@ -40,7 +40,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="sidebar-brand">
           <img
             className="brand-mark brand-mark-small"
-            src="/prefine-logo-512.png"
+            src="/prefine-logo-on-dark-512.png"
             alt=""
             aria-hidden="true"
           />

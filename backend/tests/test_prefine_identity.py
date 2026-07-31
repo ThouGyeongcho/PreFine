@@ -8,7 +8,11 @@ from backend.app.config import Settings
 
 ROOT = Path(__file__).resolve().parents[2]
 FINAL_LOGO = ROOT / "assets" / "branding" / "prefine-logo-512.png"
+DARK_SURFACE_LOGO = ROOT / "assets" / "branding" / "prefine-logo-on-dark-512.png"
 EXPECTED_LOGO_SHA256 = "ac9901d5c3dac3d3b67b287f2d63c050465066c609aa269ec619200409992df7"
+EXPECTED_DARK_SURFACE_LOGO_SHA256 = (
+    "a0051bbe2d20fb3fa5a412f2ceba2a12039fae11aa52e7ec7c641329b298c9ee"
+)
 SKIPPED_DIRECTORIES = {
     ".git",
     ".pnpm-store",
@@ -90,7 +94,11 @@ def test_current_tree_contains_no_legacy_project_identifier() -> None:
     assert findings == []
 
 
-def test_only_the_confirmed_logo_is_present() -> None:
+def test_only_the_confirmed_logos_are_present() -> None:
     branding_files = sorted(path.name for path in FINAL_LOGO.parent.glob("*.png"))
-    assert branding_files == [FINAL_LOGO.name]
+    assert branding_files == sorted([FINAL_LOGO.name, DARK_SURFACE_LOGO.name])
     assert hashlib.sha256(FINAL_LOGO.read_bytes()).hexdigest() == EXPECTED_LOGO_SHA256
+    assert (
+        hashlib.sha256(DARK_SURFACE_LOGO.read_bytes()).hexdigest()
+        == EXPECTED_DARK_SURFACE_LOGO_SHA256
+    )
