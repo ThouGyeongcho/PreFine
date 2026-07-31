@@ -1,6 +1,6 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes } from "react-router";
 import { vi } from "vitest";
 
 import { AppShell } from "./AppShell";

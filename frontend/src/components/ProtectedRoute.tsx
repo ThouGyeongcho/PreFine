@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Navigate } from "react-router-dom";
+import { Navigate } from "react-router";
 
 import { ApiError, apiRequest } from "../api/client";
 import type { CurrentUser } from "../api/types";
