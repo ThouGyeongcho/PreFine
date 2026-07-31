@@ -5,7 +5,7 @@ import { AmountText } from "../components/AmountText";
 import { copyText } from "../utils/clipboard";
 
 type Direction = "number-to-uppercase" | "uppercase-to-number";
-type CopyKey = "primary" | "grouped" | "quick" | "english";
+type CopyKey = "input" | "primary" | "grouped" | "quick" | "english";
 
 interface ConversionPair {
   amount: string;
@@ -34,38 +34,42 @@ function CopyButton({
   copiedKey,
   onCopy,
 }: CopyButtonProps) {
+  const copied = copiedKey === copyKey;
+
   return (
-    <div className="copy-action">
-      <button
-        className="button button-secondary"
-        type="button"
-        aria-label={`复制${label}`}
-        onClick={() => onCopy(copyKey, value)}
-      >
-        复制
-      </button>
-      {copiedKey === copyKey ? (
-        <span className="copy-status" role="status">
-          已复制
-        </span>
-      ) : null}
-    </div>
+    <button
+      className={`money-copy${copied ? " money-copy-done" : ""}`}
+      type="button"
+      aria-label={`复制${label}`}
+      disabled={!value}
+      onClick={() => onCopy(copyKey, value)}
+    >
+      {copied ? "已复制" : "复制"}
+    </button>
   );
 }
 
-interface ResultRowProps extends CopyButtonProps {
+interface FormatCardProps extends CopyButtonProps {
   children: ReactNode;
 }
 
-function ResultRow({ children, ...copyProps }: ResultRowProps) {
+function FormatCard({ children, ...copyProps }: FormatCardProps) {
   return (
-    <div className="result-row" role="group" aria-label={copyProps.label}>
-      <div className="result-row-content">
-        <span className="result-label">{copyProps.label}</span>
-        <span className="result-value">{children}</span>
+    <article
+      className="money-format-card"
+      role="group"
+      aria-label={copyProps.label}
+    >
+      <span className="money-label">{copyProps.label}</span>
+      <div className="money-format-value">
+        {copyProps.value ? (
+          children
+        ) : (
+          <span className="money-placeholder">—</span>
+        )}
       </div>
       <CopyButton {...copyProps} />
-    </div>
+    </article>
   );
 }
 
@@ -74,6 +78,9 @@ export function MoneyPage() {
   const [input, setInput] = useState("");
   const [result, setResult] = useState<MoneyConversionResponse | null>(null);
   const [lastPair, setLastPair] = useState<ConversionPair | null>(null);
+  const [normalizedOriginal, setNormalizedOriginal] = useState<string | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [copiedKey, setCopiedKey] = useState<CopyKey | null>(null);
@@ -81,39 +88,17 @@ export function MoneyPage() {
 
   const numberToUppercase = direction === "number-to-uppercase";
 
-  async function convert(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!input) return;
-    setPending(true);
+  function clearTransientState() {
+    setResult(null);
     setError(null);
     setCopiedKey(null);
     setCopyError(null);
-    try {
-      const response = numberToUppercase
-        ? await apiRequest<MoneyConversionResponse>("/api/money/to-uppercase", {
-            method: "POST",
-            body: JSON.stringify({ amount: input }),
-          })
-        : await apiRequest<MoneyConversionResponse>("/api/money/to-number", {
-            method: "POST",
-            body: JSON.stringify({ uppercase: input }),
-          });
-      setLastPair({ amount: response.amount, uppercase: response.uppercase });
-      setResult(response);
-    } catch (caught) {
-      setResult(null);
-      setError(
-        caught instanceof ApiError ? caught.message : "转换失败，请稍后重试",
-      );
-    } finally {
-      setPending(false);
-    }
+    setNormalizedOriginal(null);
   }
 
-  function switchDirection() {
-    const nextDirection = numberToUppercase
-      ? "uppercase-to-number"
-      : "number-to-uppercase";
+  function selectDirection(nextDirection: Direction) {
+    if (nextDirection === direction) return;
+
     setDirection(nextDirection);
     if (lastPair) {
       setInput(
@@ -124,10 +109,59 @@ export function MoneyPage() {
     } else {
       setInput("");
     }
-    setResult(null);
+    clearTransientState();
+  }
+
+  function changeInput(value: string) {
+    setInput(value);
+    setLastPair(null);
+    clearTransientState();
+  }
+
+  async function convert(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!input) return;
+
+    const submittedInput = input;
+    setPending(true);
     setError(null);
     setCopiedKey(null);
     setCopyError(null);
+    setNormalizedOriginal(null);
+
+    try {
+      const response = numberToUppercase
+        ? await apiRequest<MoneyConversionResponse>("/api/money/to-uppercase", {
+            method: "POST",
+            body: JSON.stringify({ amount: input }),
+          })
+        : await apiRequest<MoneyConversionResponse>("/api/money/to-number", {
+            method: "POST",
+            body: JSON.stringify({ uppercase: input }),
+          });
+
+      const canonicalInput = numberToUppercase
+        ? response.amount
+        : response.uppercase;
+      setInput(canonicalInput);
+      setLastPair({ amount: response.amount, uppercase: response.uppercase });
+      setResult(response);
+      setNormalizedOriginal(
+        !numberToUppercase &&
+          response.normalization_note &&
+          submittedInput !== canonicalInput
+          ? submittedInput
+          : null,
+      );
+    } catch (caught) {
+      setResult(null);
+      setLastPair(null);
+      setError(
+        caught instanceof ApiError ? caught.message : "转换失败，请稍后重试",
+      );
+    } finally {
+      setPending(false);
+    }
   }
 
   async function copyResult(key: CopyKey, value: string) {
@@ -146,152 +180,162 @@ export function MoneyPage() {
       ? result.uppercase
       : result.amount
     : "";
+  const inputLabel = numberToUppercase ? "数字金额" : "人民币大写";
 
   return (
     <div className="page-stack">
-      <header className="page-header page-header-row">
+      <header className="page-header page-header-row money-page-header">
         <div>
           <p className="eyebrow">MONEY</p>
           <h1>金额转换</h1>
-          <p className="muted">
-            转换人民币数字与规范大写，并提供便于核对和使用的金额写法。
-          </p>
         </div>
-        <button
-          className="button button-secondary"
-          type="button"
-          onClick={switchDirection}
-        >
-          {numberToUppercase ? "切换为大写转数字" : "切换为数字转大写"}
-        </button>
+        <div className="money-direction" role="group" aria-label="转换方向">
+          <button
+            type="button"
+            aria-pressed={numberToUppercase}
+            onClick={() => selectDirection("number-to-uppercase")}
+          >
+            数字转大写
+          </button>
+          <button
+            type="button"
+            aria-pressed={!numberToUppercase}
+            onClick={() => selectDirection("uppercase-to-number")}
+          >
+            大写转数字
+          </button>
+        </div>
       </header>
 
       <form
-        className="conversion-grid"
+        className="money-workbench"
         onSubmit={(event) => void convert(event)}
       >
-        <section className="conversion-panel">
-          <div className="panel-heading">
-            <span className="step-number">01</span>
-            <div>
-              <h2>{numberToUppercase ? "输入数字金额" : "输入人民币大写"}</h2>
-              <p>
-                {numberToUppercase
-                  ? "支持负数与规范千分位，最多两位小数。"
-                  : "支持规范人民币大写，也可使用“圆”，转换后会提示标准写法。"}
-              </p>
+        <div className="money-panels">
+          <section className="money-panel">
+            <div className="money-panel-heading">
+              <span className="step-number">01</span>
+              <h2>输入金额</h2>
             </div>
-          </div>
-          <label className="field-label" htmlFor="money-input">
-            {numberToUppercase ? "数字金额" : "人民币大写"}
-          </label>
-          <textarea
-            className="money-input"
-            id="money-input"
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            placeholder={
-              numberToUppercase
-                ? "例如：-128650.32"
-                : "例如：负壹拾贰万捌仟陆佰伍拾元叁角贰分"
-            }
-            inputMode={numberToUppercase ? "decimal" : "text"}
-            rows={4}
-          />
-          {error ? (
-            <div role="alert" className="inline-error">
-              {error}
+            <div className="money-field">
+              <label className="money-label" htmlFor="money-input">
+                {inputLabel}
+              </label>
+              <div className="money-content-box money-input-box">
+                <textarea
+                  className="money-input"
+                  id="money-input"
+                  value={input}
+                  onChange={(event) => changeInput(event.target.value)}
+                  placeholder={
+                    numberToUppercase ? "例如：-128650.32" : "例如：壹佰元整"
+                  }
+                  inputMode={numberToUppercase ? "decimal" : "text"}
+                  rows={3}
+                />
+                {normalizedOriginal ? (
+                  <p className="money-input-note" role="status">
+                    原输入：{normalizedOriginal} · 已规范
+                  </p>
+                ) : null}
+                {error ? (
+                  <p className="money-inline-error" role="alert">
+                    {error}
+                  </p>
+                ) : null}
+              </div>
+              <CopyButton
+                copyKey="input"
+                label="输入金额"
+                value={input}
+                copiedKey={copiedKey}
+                onCopy={(key, value) => void copyResult(key, value)}
+              />
             </div>
-          ) : null}
-          <button
-            className="button button-primary"
-            type="submit"
-            disabled={pending || !input}
-          >
-            {pending ? "正在转换…" : "转换"}
-          </button>
-        </section>
+          </section>
 
-        <section className="conversion-panel conversion-result-panel">
-          <div className="panel-heading">
-            <span className="step-number">02</span>
-            <div>
-              <h2>规范结果</h2>
-              <p>转换后可复制规范结果或任一种便捷写法。</p>
+          <section className="money-panel">
+            <div className="money-panel-heading">
+              <span className="step-number">02</span>
+              <h2>转换结果</h2>
             </div>
-          </div>
-          {result ? (
-            <div className="conversion-result-content">
-              {result.normalization_note ? (
-                <p className="normalization-note" role="status">
-                  {result.normalization_note}
-                </p>
-              ) : null}
-              <div
-                className="primary-result"
-                role="group"
-                aria-label="规范结果"
-              >
+            <div className="money-field">
+              <span className="money-label">
+                {numberToUppercase ? "人民币大写" : "数字金额"}
+              </span>
+              <div className="money-content-box">
                 <div
-                  className="conversion-output"
-                  role="status"
-                  aria-label="转换结果"
+                  className="money-primary-result"
+                  role={result ? "status" : undefined}
+                  aria-label={result ? "转换结果" : undefined}
                 >
-                  {numberToUppercase ? (
-                    <AmountText value={primaryResult} kind="uppercase" />
+                  {result ? (
+                    numberToUppercase ? (
+                      <AmountText value={primaryResult} kind="uppercase" />
+                    ) : (
+                      primaryResult
+                    )
                   ) : (
-                    primaryResult
+                    <span className="money-placeholder">转换后显示</span>
                   )}
                 </div>
-                <CopyButton
-                  copyKey="primary"
-                  label="规范结果"
-                  value={primaryResult}
-                  copiedKey={copiedKey}
-                  onCopy={(key, value) => void copyResult(key, value)}
-                />
               </div>
-
-              <section className="convenient-results" aria-label="便捷写法">
-                <h3>便捷写法</h3>
-                <ResultRow
-                  copyKey="grouped"
-                  label="千分位"
-                  value={result.grouped}
-                  copiedKey={copiedKey}
-                  onCopy={(key, value) => void copyResult(key, value)}
-                >
-                  {result.grouped}
-                </ResultRow>
-                <ResultRow
-                  copyKey="quick"
-                  label="快速读数"
-                  value={result.quick_read}
-                  copiedKey={copiedKey}
-                  onCopy={(key, value) => void copyResult(key, value)}
-                >
-                  <AmountText value={result.quick_read} kind="quick" />
-                </ResultRow>
-                <ResultRow
-                  copyKey="english"
-                  label="英文金额"
-                  value={result.english}
-                  copiedKey={copiedKey}
-                  onCopy={(key, value) => void copyResult(key, value)}
-                >
-                  {result.english}
-                </ResultRow>
-              </section>
-              {copyError ? (
-                <div className="inline-error copy-error" role="alert">
-                  {copyError}
-                </div>
-              ) : null}
+              <CopyButton
+                copyKey="primary"
+                label="转换结果"
+                value={primaryResult}
+                copiedKey={copiedKey}
+                onCopy={(key, value) => void copyResult(key, value)}
+              />
             </div>
-          ) : (
-            <div className="empty-result">转换结果将在这里显示</div>
-          )}
+          </section>
+        </div>
+
+        <button
+          className="money-convert"
+          type="submit"
+          disabled={pending || !input}
+        >
+          {pending ? "正在转换…" : "转换"}
+        </button>
+
+        <section className="money-formats" aria-label="其他金额表示方式">
+          <FormatCard
+            copyKey="grouped"
+            label="千分位"
+            value={result?.grouped ?? ""}
+            copiedKey={copiedKey}
+            onCopy={(key, value) => void copyResult(key, value)}
+          >
+            {result?.grouped}
+          </FormatCard>
+          <FormatCard
+            copyKey="quick"
+            label="快速读数"
+            value={result?.quick_read ?? ""}
+            copiedKey={copiedKey}
+            onCopy={(key, value) => void copyResult(key, value)}
+          >
+            {result ? (
+              <AmountText value={result.quick_read} kind="quick" />
+            ) : null}
+          </FormatCard>
+          <FormatCard
+            copyKey="english"
+            label="英文金额"
+            value={result?.english ?? ""}
+            copiedKey={copiedKey}
+            onCopy={(key, value) => void copyResult(key, value)}
+          >
+            {result?.english}
+          </FormatCard>
         </section>
+
+        {copyError ? (
+          <p className="money-copy-error" role="alert">
+            {copyError}
+          </p>
+        ) : null}
       </form>
     </div>
   );
